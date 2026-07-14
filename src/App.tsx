@@ -4,12 +4,11 @@ import Landing from './ui/Landing';
 import QuarantinePanel from './ui/QuarantinePanel';
 import AuditTab from './ui/AuditTab';
 import ExploreTab from './ui/ExploreTab';
+import AskTab from './ui/AskTab';
 import './App.css';
 
 type ReportTabId = 'audit' | 'explore' | 'ask';
 
-// Ask lands in Task 10 - it still shows a plain placeholder here so the tab
-// shell is real (and keyboard-testable) now.
 const TABS: { id: ReportTabId; label: string }[] = [
   { id: 'audit', label: 'Audit' },
   { id: 'explore', label: 'Explore' },
@@ -128,7 +127,7 @@ function Report() {
         <ExploreTab />
       </div>
       <div id="panel-ask" role="tabpanel" aria-labelledby="tab-ask" hidden={activeTab !== 'ask'} className="report__panel">
-        <p className="report__placeholder">Ask a question is coming soon.</p>
+        <AskTab />
       </div>
     </div>
   );

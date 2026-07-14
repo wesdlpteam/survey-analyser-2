@@ -3,8 +3,9 @@
 // AppState field names listed in the Task 6 brief - don't rename them.
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import type { AuditReport } from '../ai/auditTypes';
-import { AiError, type AiErrorKind } from '../ai/client';
+import { AiError, chatText, type AiErrorKind } from '../ai/client';
 import { buildFallbackAudit } from '../ai/fallback';
+import { chatSystemPrompt, digestForAi } from '../ai/prompts';
 import { runAiAudit } from '../ai/runAudit';
 import { sampleModel } from '../fixtures/build';
 import { parseWorkbook } from '../parser/formsParser';
@@ -17,6 +18,10 @@ const KEY_STORAGE_KEY = 'wsa2:key';
 const MODEL_STORAGE_KEY = 'wsa2:model';
 const DEFAULT_AI_MODEL = 'gpt-4o-mini';
 const GENERIC_LOAD_ERROR = "We couldn't read that file. Is it a Microsoft Forms .xlsx export?";
+// Task 10 (Ask tab): only the last N turns of the chat go to the API on any
+// one request - keeps the prompt (and the privacy surface) bounded even in a
+// very long conversation. The full history still shows in the UI.
+const CHAT_HISTORY_CAP = 12;
 
 // Plain-English translations of AiError kinds for aiError - never the raw
 // AiError.message (which may describe an HTTP status code, not something a
@@ -91,6 +96,22 @@ export interface AppState {
   // Defaults to the survey's own title on load; cleared on reset().
   reportTitle: string;
   setReportTitle(title: string): void;
+
+  // --- Task 10: Ask tab (chat) --------------------------------------------
+  // Full local conversation, oldest first - shown in full in the UI. NOT
+  // persisted (in-memory only): a page reload or reset() loses it, same as
+  // model/digest/audit.
+  chat: { role: 'user' | 'assistant'; content: string }[];
+  chatBusy: boolean;
+  // Friendly per-kind message for the most recent failed ask(), or null.
+  // Shown as an inline note near the input, never as a fake assistant
+  // message - a chat bubble claiming to be the AI's answer when it isn't
+  // would be actively misleading to a non-technical reader.
+  chatError: string | null;
+  // Sends q plus the capped recent history to OpenAI, grounded in the
+  // current digest. Never rejects: any failure is caught and turned into
+  // chatError so a caller (the UI) never needs a try/catch.
+  ask(q: string): Promise<void>;
 }
 
 // Applies quarantine to the raw model, then layers manual overrides on top:
@@ -183,6 +204,39 @@ export function createAppStore(): UseBoundStore<StoreApi<AppState>> {
     reportTitle: '',
     setReportTitle: (title) => set({ reportTitle: title }),
 
+    chat: [],
+    chatBusy: false,
+    chatError: null,
+    async ask(q) {
+      const { apiKey, digest, context, aiModel, chat } = get();
+      const question = q.trim();
+      // Defensive no-op: the UI hides the input entirely without a key or a
+      // digest, and never sends a blank question, so these should be
+      // unreachable in practice - kept anyway so ask() is safe to call.
+      if (apiKey === '' || digest === null || question === '') return;
+
+      const nextChat = [...chat, { role: 'user' as const, content: question }];
+      set({ chat: nextChat, chatBusy: true, chatError: null });
+
+      const toSend = nextChat.slice(-CHAT_HISTORY_CAP);
+      try {
+        const reply = await chatText({
+          key: apiKey,
+          model: aiModel,
+          system: chatSystemPrompt(digestForAi(digest, context)),
+          messages: toSend,
+        });
+        set((s) => ({
+          chat: [...s.chat, { role: 'assistant', content: reply }],
+          chatBusy: false,
+          chatError: null,
+        }));
+      } catch (e) {
+        const kind = e instanceof AiError ? e.kind : 'network';
+        set({ chatBusy: false, chatError: AI_ERROR_MESSAGES[kind] });
+      }
+    },
+
     async loadFile(file) {
       set({ phase: 'analysing', error: null });
       try {
@@ -239,6 +293,9 @@ export function createAppStore(): UseBoundStore<StoreApi<AppState>> {
         aiStatus: 'idle',
         aiError: null,
         reportTitle: '',
+        chat: [],
+        chatBusy: false,
+        chatError: null,
       });
     },
 
