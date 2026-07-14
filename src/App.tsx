@@ -5,6 +5,7 @@ import QuarantinePanel from './ui/QuarantinePanel';
 import AuditTab from './ui/AuditTab';
 import ExploreTab from './ui/ExploreTab';
 import AskTab from './ui/AskTab';
+import ExportButton from './ui/ExportButton';
 import './App.css';
 
 type ReportTabId = 'audit' | 'explore' | 'ask';
@@ -88,9 +89,7 @@ function Report() {
           Start over
         </button>
         <AiStatusPill />
-        <button type="button" className="report__export" disabled>
-          Export report (coming soon)
-        </button>
+        <ExportButton />
       </div>
 
       <QuarantinePanel />
