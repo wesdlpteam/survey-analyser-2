@@ -194,7 +194,7 @@ const COULD_IMPROVE = [
   'More notice before roster changes would help a lot.',
   'The wifi in the St Kilda Rd building drops out often.',
   'Meeting rooms get booked out very quickly some weeks.',
-  'Contact me on john.smith@wesley.edu.au or 0412 345 678 if you want more detail.',
+  'Contact me on john.smith@example.com or 0412 345 678 if you want more detail.',
   'Printing queues can be slow during peak times.',
   'More parking spots would reduce morning stress.',
   'Clearer signage around the Elsternwick campus would help visitors.',

@@ -132,7 +132,7 @@ export function sampleModel(): SurveyModel;            // parsed fixture, for de
 
 **Fixture content (fabricated staff-survey, reused everywhere):** headers
 `ID, Start time, Completion time, Email, Name, Which campus are you based at?, Your role, How satisfied are you with communication? (1-5), I feel supported by leadership., How likely are you to recommend working here? (0-10), Which resources do you use? , What is working well?, What could be improved?`
-14 data rows: campuses Glen Waverley/St Kilda Rd/Elsternwick; roles Teacher/Support staff/Leadership; satisfaction ints 1–5; agreement labels Strongly disagree…Strongly agree; 0–10 ints; resources semicolon-joined (`Library;Printing`, etc.); open text incl. one comment containing `Contact me on john.smith@wesley.edu.au or 0412 345 678` and names `Mr Chen`, fake emails `alex.sample@example.com`.
+14 data rows: campuses Glen Waverley/St Kilda Rd/Elsternwick; roles Teacher/Support staff/Leadership; satisfaction ints 1–5; agreement labels Strongly disagree…Strongly agree; 0–10 ints; resources semicolon-joined (`Library;Printing`, etc.); open text incl. one comment containing `Contact me on john.smith@example.com or 0412 345 678` and names `Mr Chen`, fake emails `alex.sample@example.com`.
 
 **Detection rules (implement in this order per column):**
 1. Header in metadata set (case-insensitive): `id, start time, completion time, email, name, last modified time, language, total points` or starts with `points -`/`feedback -` → `meta`.
