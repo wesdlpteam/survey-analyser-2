@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { sampleModel } from '../fixtures/build';
 import type { QType, SurveyModel, Question } from '../types';
 import { applyQuarantine } from './quarantine';
-import { scrubText } from './scrub';
+import { makeScrubber, scrubText } from './scrub';
 
 function findQuestion(questions: Question[], title: string): Question {
   const q = questions.find((question) => question.title === title);
@@ -133,13 +133,29 @@ describe('applyQuarantine - header rule edge cases', () => {
     expect(applyQuarantine(modelWithHeader('Preferred Name')).questions[0].quarantineReason).toBe('name');
     expect(applyQuarantine(modelWithHeader('Nickname')).questions[0].quarantined).toBe(false);
   });
+
+  it('matches "Student ID:" - trailing punctuation is stripped before the suffix test', () => {
+    expect(applyQuarantine(modelWithHeader('Student ID:')).questions[0].quarantineReason).toBe('identifier');
+  });
+
+  it('matches "ID Number", "Employee Number" and "Contact Number"', () => {
+    expect(applyQuarantine(modelWithHeader('ID Number')).questions[0].quarantineReason).toBe('identifier');
+    expect(applyQuarantine(modelWithHeader('Employee Number')).questions[0].quarantineReason).toBe('identifier');
+    expect(applyQuarantine(modelWithHeader('Contact Number')).questions[0].quarantineReason).toBe('identifier');
+  });
+
+  it('does not treat "Did numbers help you?" as an id-number column', () => {
+    // "Did numbers" contains the raw substring "id number" - the phrase
+    // must only match at a word boundary.
+    expect(applyQuarantine(modelWithHeader('Did numbers help you?')).questions[0].quarantined).toBe(false);
+  });
 });
 
 describe('applyQuarantine - value-scan rule ("looks-personal")', () => {
-  function modelWithRows(rows: SurveyModel['rows'], type: QType = 'text'): SurveyModel {
+  function modelWithRows(rows: SurveyModel['rows'], type: QType = 'text', header = 'Notes'): SurveyModel {
     return {
       title: 'Synthetic',
-      questions: [{ id: 'q0', title: 'Notes', type, quarantined: false }],
+      questions: [{ id: 'q0', title: header, type, quarantined: false }],
       rows,
       respondentCount: rows.length,
     };
@@ -182,8 +198,16 @@ describe('applyQuarantine - value-scan rule ("looks-personal")', () => {
     expect(applyQuarantine(model).questions[0].quarantined).toBe(false);
   });
 
-  it('ignores numeric cell values (only string values are scanned)', () => {
-    const result = applyQuarantine(modelWithRows([[412345678], [412345678], [412345678]], 'numeric'));
+  it('scans numeric cells too: a numeric column of phone-like numbers is quarantined', () => {
+    // A Forms "Number" question full of phone numbers arrives as JS numbers,
+    // not strings - the scan must coerce and catch them.
+    const result = applyQuarantine(modelWithRows([[91234567], [91234568], [91234569]], 'numeric', 'Extra info'));
+    expect(result.questions[0].quarantined).toBe(true);
+    expect(result.questions[0].quarantineReason).toBe('looks-personal');
+  });
+
+  it('does not flag ordinary small numbers (rating answers) as personal', () => {
+    const result = applyQuarantine(modelWithRows([[4], [5], [3], [2]], 'rating', 'Extra info'));
     expect(result.questions[0].quarantined).toBe(false);
   });
 });
@@ -234,5 +258,70 @@ describe('scrubText', () => {
 
   it('does not swallow a sentence-ending period glued directly onto an email', () => {
     expect(scrubText('My email is john@example.com. Thanks.')).toBe('My email is [email]. Thanks.');
+  });
+
+  it('keeps a comma or semicolon glued directly onto an email', () => {
+    expect(scrubText('mail john@x.com, thanks')).toBe('mail [email], thanks');
+    expect(scrubText('mail john@x.com; thanks')).toBe('mail [email]; thanks');
+  });
+
+  it("scrubs apostrophe/hyphen surnames (Mrs O'Brien-Smith)", () => {
+    expect(scrubText("Ask Mrs O'Brien-Smith for details.")).toBe('Ask [name] for details.');
+  });
+
+  it('scrubs particle surnames (Dr van der Berg)', () => {
+    expect(scrubText('Dr van der Berg runs the clinic.')).toBe('[name] runs the clinic.');
+  });
+
+  it('scrubs an initial before the surname (Mr J. Chen)', () => {
+    expect(scrubText('Mr J. Chen presented the results.')).toBe('[name] presented the results.');
+  });
+
+  it('does not over-eat words after the name ("Dr Smith said the Library helps")', () => {
+    expect(scrubText('Dr Smith said the Library helps')).toBe('[name] said the Library helps');
+  });
+
+  it('does not eat a following word that merely starts with a particle ("described")', () => {
+    expect(scrubText('Dr Smith described the plan.')).toBe('[name] described the plan.');
+  });
+});
+
+describe('makeScrubber', () => {
+  const scrubber = makeScrubber(applyQuarantine(sampleModel()));
+
+  it('scrubs a quarantined Name-column value from a comment even without an honorific', () => {
+    const scrubbed = scrubber('I spoke to Alex Sample about the roster.');
+    expect(scrubbed).not.toContain('Alex');
+    expect(scrubbed).not.toContain('Sample');
+    expect(scrubbed).toBe('I spoke to [name] about the roster.');
+  });
+
+  it('matches name tokens case-insensitively as whole words', () => {
+    expect(scrubber('ALEX and jamie both agreed.')).toBe('[name] and [name] both agreed.');
+  });
+
+  it('does not scrub partial-word matches ("sampler" must survive the "Sample" token)', () => {
+    expect(scrubber('The sampler course was great.')).toBe('The sampler course was great.');
+  });
+
+  it('still applies the base scrubText pass first (emails, phones, honorifics)', () => {
+    expect(scrubber('Contact me on john.smith@example.com or 0412 345 678 if you want more detail.')).toBe(
+      'Contact me on [email] or [phone] if you want more detail.',
+    );
+  });
+
+  it('leaves a plain comment unchanged', () => {
+    const plain = 'More notice before roster changes would help a lot.';
+    expect(scrubber(plain)).toBe(plain);
+  });
+
+  it('falls back to a plain scrubText pass when the model has no quarantined name/email columns', () => {
+    const bare: SurveyModel = {
+      title: 'X',
+      questions: [{ id: 'q0', title: 'Notes', type: 'text', quarantined: false }],
+      rows: [['hello']],
+      respondentCount: 1,
+    };
+    expect(makeScrubber(bare)('Ask Dr Smith or email a@b.co today.')).toBe('Ask [name] or email [email] today.');
   });
 });

@@ -17,8 +17,20 @@ const VALUE_PHONE_REGEX = /(\+?\d[\d\s-]{7,})/;
 
 const VALUE_SCAN_THRESHOLD = 0.3;
 
+// "id number" must only match at a word boundary, or "Did numbers help
+// you?" would misfire ("[d]id number[s]" contains the raw substring).
+// No trailing \b so the plural "ID Numbers" still matches.
+const ID_NUMBER_REGEX = /\bid number/;
+
 function normaliseHeader(title: string): string {
-  return title.trim().toLowerCase();
+  // Trailing punctuation/whitespace is stripped so "Student ID:" still ends
+  // with " id". Unicode-aware ([^\p{L}\p{N}]) so only non-letter/non-digit
+  // characters are eaten - a trailing accented letter is never clipped into
+  // an accidental rule match.
+  return title
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+$/u, '')
+    .trim();
 }
 
 // Header-based rules, checked in the brief's exact order; the first match
@@ -37,8 +49,11 @@ function classifyHeader(title: string, type: QType): string | null {
   if (
     h === 'id' ||
     h.endsWith(' id') ||
+    ID_NUMBER_REGEX.test(h) ||
     h.includes('student number') ||
     h.includes('staff number') ||
+    h.includes('employee number') ||
+    h.includes('contact number') ||
     h.includes('username') ||
     h.includes('ip address')
   ) {
@@ -50,22 +65,26 @@ function classifyHeader(title: string, type: QType): string | null {
 }
 
 // Runs only on columns the header rules didn't already quarantine (see the
-// `??` short-circuit in applyQuarantine below). Only string cell values can
-// look like an email/phone - rating/numeric columns hold numbers, never
-// strings, by the time they reach here - so non-string cells are simply
-// excluded rather than coerced to text.
+// `??` short-circuit in applyQuarantine below). EVERY non-empty cell is
+// scanned, coerced to a trimmed string first - a Forms "Number" question
+// full of phone numbers arrives as JS numbers, not strings, and skipping
+// numeric cells would leave a whole column of phone numbers unquarantined.
+// (Short numbers like rating answers can't false-positive: the phone regex
+// needs an 8+ character digit run.)
 function classifyByValues(rows: SurveyModel['rows'], colIndex: number): string | null {
-  const nonEmptyStrings = rows
+  const nonEmpty = rows
     .map((row) => row[colIndex])
-    .filter((value): value is string => typeof value === 'string' && value.trim() !== '');
+    .filter((value) => value !== null)
+    .map((value) => String(value).trim())
+    .filter((value) => value !== '');
 
-  if (nonEmptyStrings.length === 0) return null; // nothing to scan; avoids a 0/0 divide
+  if (nonEmpty.length === 0) return null; // nothing to scan; avoids a 0/0 divide
 
-  const personalCount = nonEmptyStrings.filter(
+  const personalCount = nonEmpty.filter(
     (value) => VALUE_EMAIL_REGEX.test(value) || VALUE_PHONE_REGEX.test(value),
   ).length;
 
-  return personalCount / nonEmptyStrings.length > VALUE_SCAN_THRESHOLD ? 'looks-personal' : null;
+  return personalCount / nonEmpty.length > VALUE_SCAN_THRESHOLD ? 'looks-personal' : null;
 }
 
 export function applyQuarantine(model: SurveyModel): SurveyModel {
