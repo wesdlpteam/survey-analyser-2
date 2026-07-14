@@ -1,0 +1,113 @@
+.quarantine-panel {
+  background: var(--wes-neutral-100);
+  border: 1px solid var(--wes-neutral-300);
+  border-radius: var(--radius);
+  padding: 0;
+  margin: 1.5rem 0;
+}
+
+.quarantine-panel__summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 1rem 1.25rem;
+  font-weight: 600;
+  color: var(--wes-purple);
+}
+
+.quarantine-panel__summary::-webkit-details-marker {
+  display: none;
+}
+
+.quarantine-panel__summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 0.5rem;
+  transition: transform 0.15s ease;
+}
+
+.quarantine-panel[open] > .quarantine-panel__summary::before {
+  transform: rotate(90deg);
+}
+
+.quarantine-panel__body {
+  padding: 0 1.25rem 1.25rem;
+}
+
+.quarantine-panel__intro {
+  color: var(--wes-neutral-900);
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+}
+
+.quarantine-panel__list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.quarantine-panel__item {
+  background: var(--wes-white);
+  border-radius: 10px;
+  padding: 0.6rem 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.quarantine-panel__title {
+  font-weight: 600;
+}
+
+.quarantine-panel__reason {
+  color: var(--wes-neutral-900);
+}
+
+.quarantine-panel__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--wes-purple);
+  margin-left: auto;
+}
+
+.quarantine-panel__putback {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--wes-purple);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.25rem;
+}
+
+.quarantine-panel__manual {
+  border-top: 1px solid var(--wes-neutral-300);
+  padding-top: 1rem;
+}
+
+.quarantine-panel__manual-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+.quarantine-panel__manual-select {
+  width: 100%;
+  max-width: 28rem;
+  min-height: 6rem;
+  border: 1px solid var(--wes-neutral-300);
+  border-radius: 8px;
+  padding: 0.4rem;
+  font-family: inherit;
+}
+
+.quarantine-panel__manual-hint {
+  font-size: 0.8rem;
+  color: var(--wes-neutral-900);
+  margin-top: 0.35rem;
+}

@@ -1,0 +1,135 @@
+.landing {
+  min-height: 100%;
+  background: var(--wes-white);
+}
+
+.landing__topbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 1rem 1.5rem 0;
+}
+
+.landing__settings-btn {
+  background: none;
+  border: 1px solid var(--wes-neutral-300);
+  border-radius: 50%;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--wes-purple);
+  cursor: pointer;
+}
+
+.landing__settings-btn:hover {
+  border-color: var(--wes-purple);
+}
+
+.landing__hero {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.5rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.landing__standfirst {
+  color: var(--wes-purple);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+}
+
+.landing__headline {
+  color: var(--wes-ink-gold);
+  font-size: clamp(1.9rem, 4vw, 2.75rem);
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+.landing__body {
+  color: var(--wes-neutral-900);
+  font-size: 1.05rem;
+  max-width: 34rem;
+}
+
+.landing__dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+  background: var(--wes-neutral-100);
+  border: 2px dashed var(--wes-purple);
+  border-radius: var(--radius);
+  padding: 2.5rem 1.5rem;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.landing__dropzone:hover,
+.landing__dropzone--dragging {
+  border-color: var(--wes-gold);
+  box-shadow: 0 0 0 4px rgb(197 159 64 / 0.25);
+}
+
+.landing__dropzone-text {
+  font-weight: 600;
+  color: var(--wes-purple);
+}
+
+.landing__dropzone-hint {
+  color: var(--wes-neutral-900);
+  font-size: 0.85rem;
+}
+
+.landing__error {
+  background: var(--rag-red-bg);
+  color: var(--rag-red-ink);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+}
+
+.landing__context {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.landing__context-label {
+  font-weight: 600;
+}
+
+.landing__context-input {
+  border: 1px solid var(--wes-neutral-300);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.landing__sample-btn {
+  align-self: flex-start;
+  background: none;
+  border: 1px solid var(--wes-purple);
+  color: var(--wes-purple);
+  border-radius: 8px;
+  padding: 0.6rem 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.landing__sample-btn:hover {
+  background: var(--wes-neutral-100);
+}
+
+.landing__privacy {
+  color: var(--wes-neutral-900);
+  font-size: 0.85rem;
+  border-top: 1px solid var(--wes-neutral-300);
+  padding-top: 1.25rem;
+}

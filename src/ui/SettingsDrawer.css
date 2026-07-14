@@ -1,0 +1,94 @@
+.settings-drawer__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgb(43 40 31 / 0.45);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 100;
+}
+
+.settings-drawer {
+  background: var(--wes-white);
+  width: min(24rem, 100%);
+  height: 100%;
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+  overflow-y: auto;
+}
+
+.settings-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.settings-drawer__heading {
+  color: var(--wes-purple);
+  font-size: 1.25rem;
+}
+
+.settings-drawer__close {
+  background: none;
+  border: 1px solid var(--wes-purple);
+  border-radius: 8px;
+  padding: 0.35rem 0.75rem;
+  color: var(--wes-purple);
+  cursor: pointer;
+}
+
+.settings-drawer__field {
+  margin-bottom: 1.75rem;
+}
+
+.settings-drawer__label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+.settings-drawer__key-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.settings-drawer__key-input,
+.settings-drawer__select,
+.settings-drawer__custom-model {
+  width: 100%;
+  border: 1px solid var(--wes-neutral-300);
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.settings-drawer__custom-model {
+  margin-top: 0.5rem;
+}
+
+.settings-drawer__show-toggle {
+  background: none;
+  border: 1px solid var(--wes-neutral-300);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  color: var(--wes-purple);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.settings-drawer__note {
+  font-size: 0.8rem;
+  color: var(--wes-neutral-900);
+  margin-top: 0.4rem;
+}
+
+.settings-drawer__forget {
+  background: none;
+  border: none;
+  color: var(--wes-purple);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0.4rem 0;
+  margin-top: 0.25rem;
+}
