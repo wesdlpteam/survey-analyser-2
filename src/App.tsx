@@ -27,6 +27,39 @@ function nextTabIndex(key: string, current: number): number | null {
   return null;
 }
 
+// Report header pill showing where the audit came from. Hidden entirely
+// when no AI key is configured - the fallback audit is the whole story then,
+// so there's nothing AI-related worth mentioning.
+function AiStatusPill() {
+  const apiKey = useApp((s) => s.apiKey);
+  const aiStatus = useApp((s) => s.aiStatus);
+  const aiError = useApp((s) => s.aiError);
+  const retryAiAudit = useApp((s) => s.retryAiAudit);
+
+  if (!apiKey || aiStatus === 'idle') return null;
+
+  if (aiStatus === 'running') {
+    return (
+      <p className="report__ai-status report__ai-status--running" role="status">
+        Writing AI audit…
+      </p>
+    );
+  }
+
+  if (aiStatus === 'error') {
+    return (
+      <p className="report__ai-status report__ai-status--error" role="alert">
+        {aiError ?? 'The AI audit could not be generated. The audit below is still the rule-based one.'}
+        <button type="button" className="report__ai-retry" onClick={() => retryAiAudit()}>
+          Retry
+        </button>
+      </p>
+    );
+  }
+
+  return <p className="report__ai-status report__ai-status--done">AI audit ready</p>;
+}
+
 function Report() {
   const model = useApp((s) => s.model);
   const digest = useApp((s) => s.digest);
@@ -55,6 +88,7 @@ function Report() {
         <button type="button" className="report__reset" onClick={reset}>
           Start over
         </button>
+        <AiStatusPill />
         <button type="button" className="report__export" disabled>
           Export report (coming soon)
         </button>

@@ -3,7 +3,9 @@
 // AppState field names listed in the Task 6 brief - don't rename them.
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import type { AuditReport } from '../ai/auditTypes';
+import { AiError, type AiErrorKind } from '../ai/client';
 import { buildFallbackAudit } from '../ai/fallback';
+import { runAiAudit } from '../ai/runAudit';
 import { sampleModel } from '../fixtures/build';
 import { parseWorkbook } from '../parser/formsParser';
 import { applyQuarantine } from '../pii/quarantine';
@@ -15,6 +17,16 @@ const KEY_STORAGE_KEY = 'wsa2:key';
 const MODEL_STORAGE_KEY = 'wsa2:model';
 const DEFAULT_AI_MODEL = 'gpt-4o-mini';
 const GENERIC_LOAD_ERROR = "We couldn't read that file. Is it a Microsoft Forms .xlsx export?";
+
+// Plain-English translations of AiError kinds for aiError - never the raw
+// AiError.message (which may describe an HTTP status code, not something a
+// non-technical reader needs).
+const AI_ERROR_MESSAGES: Record<AiErrorKind, string> = {
+  auth: "That API key wasn't accepted. Check it in Settings and try again.",
+  rate: 'OpenAI is busy right now. Wait a moment and try again.',
+  network: "Couldn't reach OpenAI. Check your internet connection and try again.",
+  'bad-response': "OpenAI sent back something we couldn't use. Try again.",
+};
 
 // localStorage can throw (private browsing, storage disabled) - every call
 // is wrapped so a storage failure never breaks the app.
@@ -48,6 +60,9 @@ export interface AppState {
   setAiModel(m: string): void;
   aiStatus: 'idle' | 'running' | 'done' | 'error';
   aiError: string | null;
+  // Re-runs the AI audit against the current digest (report header's Retry
+  // button). No-op if there's no key or no digest loaded.
+  retryAiAudit(): void;
   loadFile(f: File): Promise<void>;
   loadSample(): void;
   reset(): void;
@@ -107,6 +122,35 @@ function runPipeline(rawModel: SurveyModel, manualExcluded: string[], restored: 
   return { model, digest, audit };
 }
 
+// Kicks off (or resets) the AI audit for whatever digest is currently in the
+// store. Called right after every runPipeline() set(), so the AI audit
+// re-runs on the exact same triggers as the fallback rebuild (initial load,
+// quarantine override changes) - no separate trigger path to keep in sync.
+// A stale-digest guard (object identity) means a slow reply left over from
+// an earlier pipeline run can never clobber state a newer run already set;
+// on success it replaces `audit` (same AuditReport shape the fallback used,
+// so AuditTab needs no changes); on AiError it leaves the fallback `audit`
+// already set by runPipeline untouched and only records aiStatus/aiError.
+function runAiAuditIfKeyed(set: (partial: Partial<AppState>) => void, get: () => AppState): void {
+  const { apiKey, digest, context, aiModel } = get();
+  if (apiKey === '' || digest === null) {
+    set({ aiStatus: 'idle', aiError: null });
+    return;
+  }
+  const requestDigest = digest;
+  set({ aiStatus: 'running', aiError: null });
+  runAiAudit(requestDigest, context, apiKey, aiModel)
+    .then((report) => {
+      if (get().digest !== requestDigest) return; // superseded - drop this stale reply
+      set({ audit: report, aiStatus: 'done', aiError: null });
+    })
+    .catch((e: unknown) => {
+      if (get().digest !== requestDigest) return;
+      const kind = e instanceof AiError ? e.kind : 'network';
+      set({ aiStatus: 'error', aiError: AI_ERROR_MESSAGES[kind] });
+    });
+}
+
 export function createAppStore(): UseBoundStore<StoreApi<AppState>> {
   return create<AppState>((set, get) => ({
     phase: 'landing',
@@ -127,6 +171,7 @@ export function createAppStore(): UseBoundStore<StoreApi<AppState>> {
     },
     aiStatus: 'idle',
     aiError: null,
+    retryAiAudit: () => runAiAuditIfKeyed(set, get),
     error: null,
 
     rawModel: null,
@@ -152,9 +197,11 @@ export function createAppStore(): UseBoundStore<StoreApi<AppState>> {
           error: null,
           reportTitle: `${model.title} Audit Report`,
         });
+        runAiAuditIfKeyed(set, get);
       } catch (e) {
         const message = e instanceof ParseError ? e.message : GENERIC_LOAD_ERROR;
         set({ phase: 'landing', error: message, rawModel: null, model: null, digest: null, audit: null });
+        runAiAuditIfKeyed(set, get);
       }
     },
 
@@ -172,6 +219,7 @@ export function createAppStore(): UseBoundStore<StoreApi<AppState>> {
         error: null,
         reportTitle: `${model.title} Audit Report`,
       });
+      runAiAuditIfKeyed(set, get);
     },
 
     reset() {
@@ -196,6 +244,7 @@ export function createAppStore(): UseBoundStore<StoreApi<AppState>> {
       if (!rawModel) return;
       const { model, digest, audit } = runPipeline(rawModel, ids, restored);
       set({ manualExcluded: ids, model, digest, audit });
+      runAiAuditIfKeyed(set, get);
     },
 
     toggleRestore(questionId) {
@@ -214,6 +263,7 @@ export function createAppStore(): UseBoundStore<StoreApi<AppState>> {
         : [...restored, questionId];
       const { model: nextModel, digest, audit } = runPipeline(rawModel, manualExcluded, nextRestored);
       set({ restored: nextRestored, model: nextModel, digest, audit });
+      runAiAuditIfKeyed(set, get);
     },
   }));
 }
