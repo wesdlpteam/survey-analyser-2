@@ -1,42 +1,100 @@
+import { useState, type KeyboardEvent } from 'react';
 import { useApp } from './store/appStore';
 import Landing from './ui/Landing';
 import QuarantinePanel from './ui/QuarantinePanel';
+import ExploreTab from './ui/ExploreTab';
+import './App.css';
 
-// Temporary report placeholder for this task only - respondent count + raw
-// JSON digest, so the pipeline can be smoke-tested end to end. Replaced by
-// the real report screens in Task 7/8.
+type ReportTabId = 'audit' | 'explore' | 'ask';
+
+// Audit content lands in Task 8, Ask in Task 10 - both show a plain
+// placeholder here so the tab shell is real (and keyboard-testable) now.
+const TABS: { id: ReportTabId; label: string }[] = [
+  { id: 'audit', label: 'Audit' },
+  { id: 'explore', label: 'Explore' },
+  { id: 'ask', label: 'Ask' },
+];
+
+// WAI-ARIA tabs pattern: Left/Right (and Home/End) move focus AND selection
+// together (single-select, "automatic activation" - the common case for a
+// small, fast tab set like this one).
+function nextTabIndex(key: string, current: number): number | null {
+  if (key === 'ArrowRight') return (current + 1) % TABS.length;
+  if (key === 'ArrowLeft') return (current - 1 + TABS.length) % TABS.length;
+  if (key === 'Home') return 0;
+  if (key === 'End') return TABS.length - 1;
+  return null;
+}
+
 function Report() {
   const model = useApp((s) => s.model);
   const digest = useApp((s) => s.digest);
-  const audit = useApp((s) => s.audit);
   const reset = useApp((s) => s.reset);
+  const [activeTab, setActiveTab] = useState<ReportTabId>('audit');
 
   if (!model || !digest) {
-    return <p style={{ padding: '1.5rem' }}>Reading your file…</p>;
+    return <p className="report__loading">Reading your file…</p>;
+  }
+
+  function selectTab(index: number) {
+    setActiveTab(TABS[index].id);
+    document.getElementById(`tab-${TABS[index].id}`)?.focus();
+  }
+
+  function handleTabKeyDown(e: KeyboardEvent<HTMLButtonElement>, index: number) {
+    const next = nextTabIndex(e.key, index);
+    if (next === null) return;
+    e.preventDefault();
+    selectTab(next);
   }
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '60rem', margin: '0 auto' }}>
-      <button
-        type="button"
-        onClick={reset}
-        style={{
-          background: 'none',
-          border: '1px solid var(--wes-purple)',
-          color: 'var(--wes-purple)',
-          borderRadius: '8px',
-          padding: '0.5rem 1rem',
-          cursor: 'pointer',
-          marginBottom: '1rem',
-        }}
-      >
-        Start over
-      </button>
-      <p>{model.respondentCount} respondents</p>
+    <div className="report">
+      <div className="report__toolbar">
+        <button type="button" className="report__reset" onClick={reset}>
+          Start over
+        </button>
+        <button type="button" className="report__export" disabled>
+          Export report (coming soon)
+        </button>
+      </div>
+
       <QuarantinePanel />
-      <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-        {JSON.stringify({ digest, audit }, null, 2)}
-      </pre>
+
+      <div className="report__tabs" role="tablist" aria-label="Report sections">
+        {TABS.map((tab, i) => (
+          <button
+            key={tab.id}
+            id={`tab-${tab.id}`}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            aria-controls={`panel-${tab.id}`}
+            tabIndex={activeTab === tab.id ? 0 : -1}
+            className={`report__tab${activeTab === tab.id ? ' report__tab--active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+            onKeyDown={(e) => handleTabKeyDown(e, i)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div id="panel-audit" role="tabpanel" aria-labelledby="tab-audit" hidden={activeTab !== 'audit'} className="report__panel">
+        <p className="report__placeholder">Audit view is coming soon.</p>
+      </div>
+      <div
+        id="panel-explore"
+        role="tabpanel"
+        aria-labelledby="tab-explore"
+        hidden={activeTab !== 'explore'}
+        className="report__panel"
+      >
+        <ExploreTab />
+      </div>
+      <div id="panel-ask" role="tabpanel" aria-labelledby="tab-ask" hidden={activeTab !== 'ask'} className="report__panel">
+        <p className="report__placeholder">Ask a question is coming soon.</p>
+      </div>
     </div>
   );
 }
@@ -46,20 +104,12 @@ function App() {
 
   return (
     <>
-      <header
-        style={{
-          backgroundColor: 'var(--wes-purple)',
-          borderBottom: '4px solid var(--wes-gold)',
-          padding: '1rem 1.5rem',
-        }}
-      >
-        <h1 style={{ color: 'var(--wes-white)', fontSize: '1.25rem', margin: 0 }}>
-          Wesley Survey Analyser
-        </h1>
+      <header className="app-header">
+        <h1 className="app-header__title">Wesley Survey Analyser</h1>
       </header>
       <main>{phase === 'landing' ? <Landing /> : <Report />}</main>
     </>
-  )
+  );
 }
 
-export default App
+export default App;

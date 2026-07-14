@@ -1,0 +1,82 @@
+.app-header {
+  background: var(--wes-purple);
+  border-bottom: 4px solid var(--wes-gold);
+  padding: 1rem 1.5rem;
+}
+
+.app-header__title {
+  color: var(--wes-white);
+  font-size: 1.25rem;
+}
+
+.report {
+  padding: 1.5rem;
+  max-width: 72rem;
+  margin: 0 auto;
+}
+
+.report__loading {
+  padding: 1.5rem;
+}
+
+.report__toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.report__reset,
+.report__export {
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.report__reset {
+  background: none;
+  border: 1px solid var(--wes-purple);
+  color: var(--wes-purple);
+}
+
+.report__export {
+  background: var(--wes-purple);
+  border: 1px solid var(--wes-purple);
+  color: var(--wes-white);
+}
+
+.report__export:disabled {
+  background: var(--wes-neutral-200);
+  border-color: var(--wes-neutral-300);
+  color: var(--wes-neutral-900);
+  cursor: not-allowed;
+}
+
+.report__tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--wes-neutral-300);
+  margin-bottom: 1.5rem;
+}
+
+.report__tab {
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 0.65rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--wes-neutral-900);
+  cursor: pointer;
+}
+
+.report__tab--active {
+  color: var(--wes-purple);
+  border-bottom-color: var(--wes-purple);
+}
+
+.report__placeholder {
+  color: var(--wes-neutral-900);
+  padding: 2rem 0;
+}

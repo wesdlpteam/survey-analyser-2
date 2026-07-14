@@ -1,0 +1,39 @@
+.explore-tab__segment {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+}
+
+.explore-tab__segment-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.explore-tab__segment-select {
+  border: 1px solid var(--wes-neutral-300);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  font-family: inherit;
+  font-size: 0.9rem;
+  background: var(--wes-white);
+}
+
+.explore-tab__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.explore-tab__comments-heading {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 0.85rem;
+}
+
+.explore-tab__comments {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}

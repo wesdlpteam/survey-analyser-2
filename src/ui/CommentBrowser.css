@@ -1,0 +1,93 @@
+.comment-browser {
+  background: var(--wes-white);
+  border: 1px solid var(--wes-neutral-300);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+
+.comment-browser__title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.comment-browser__count {
+  font-size: 0.85rem;
+  color: var(--wes-neutral-900);
+  margin-bottom: 0.85rem;
+}
+
+.comment-browser__sentiment {
+  margin-bottom: 1rem;
+}
+
+.comment-browser__sentiment-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--wes-neutral-200);
+}
+
+.comment-browser__sentiment-bar span {
+  height: 100%;
+}
+
+/* 2px surface-colour gap between segments - the dataviz spacer that
+   separates touching marks without drawing a border around them. */
+.comment-browser__sentiment-bar span + span {
+  border-left: 2px solid var(--wes-white);
+}
+
+.comment-browser__sentiment-legend {
+  font-size: 0.8rem;
+  color: var(--wes-neutral-900);
+  margin-top: 0.4rem;
+}
+
+.comment-browser__themes {
+  margin-bottom: 1rem;
+}
+
+.comment-browser__themes-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.comment-browser__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.comment-browser__chip {
+  border: none;
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.comment-browser__list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 20rem;
+  overflow-y: auto;
+}
+
+.comment-browser__item {
+  background: var(--wes-neutral-100);
+  border-radius: 8px;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.9rem;
+}
+
+.comment-browser__empty {
+  font-size: 0.9rem;
+  color: var(--wes-neutral-900);
+  font-style: italic;
+}

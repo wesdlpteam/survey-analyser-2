@@ -1,0 +1,28 @@
+.kpi-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.kpi-tile {
+  background: var(--wes-white);
+  border: 1px solid var(--wes-neutral-300);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+}
+
+.kpi-tile__label {
+  font-size: 0.85rem;
+  color: var(--wes-neutral-900);
+  margin-bottom: 0.35rem;
+}
+
+.kpi-tile__value {
+  font-size: 1.9rem;
+  font-weight: 700;
+  /* Purple is reserved for interactive elements app-wide - a headline
+     number isn't one, so it takes the body ink instead. */
+  color: var(--wes-neutral-900);
+  font-variant-numeric: proportional-nums;
+}
