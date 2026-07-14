@@ -1,0 +1,18 @@
+:root {
+  --wes-purple: #4F2759; --wes-gold: #C59F40; --wes-black: #000; --wes-white: #fff;
+  --wes-yellow-dark:#A2814A; --wes-yellow:#DFAB57; --wes-yellow-light:#FFD157;
+  --wes-orange-dark:#A35333; --wes-orange:#F37024; --wes-orange-light:#FFA245;
+  --wes-red-dark:#983859; --wes-red:#DC3859; --wes-red-light:#FA3859;
+  --wes-blue-dark:#4242A1; --wes-blue:#2F60C7; --wes-blue-light:#7CA3FF;
+  --wes-green-dark:#636656; --wes-green:#6E9D60; --wes-green-light:#86C791;
+  --wes-neutral-100:#EFEDED; --wes-neutral-200:#E6E2DD; --wes-neutral-300:#DAD7D1; --wes-neutral-900:#2B281F;
+  --wes-success:#58C337; --wes-warning:#F0A54F; --wes-error:#E83534;
+  --wes-tint-amber:#FFEDBC; --wes-tint-peach:#FFDAB5; --wes-tint-rose:#FDAFBD; --wes-tint-blue:#CBDAFF; --wes-tint-green:#CFE9D3;
+  --wes-ink-gold:#7A5012; --wes-ink-rose:#8F1D2E; --wes-ink-rust:#8A4B12;
+  --wes-font-ui:"Graphik","Segoe UI",system-ui,sans-serif;
+  /* derived (this app) */
+  --rag-green-bg:#e7f6e2; --rag-green-ink:#2c6b1a;
+  --rag-amber-bg:#fdf0dd; --rag-amber-ink:#8a5410;
+  --rag-red-bg:#fde4e4; --rag-red-ink:#a31817;
+  --radius:14px; --shadow:0 2px 12px rgb(43 40 31 / .08);
+}

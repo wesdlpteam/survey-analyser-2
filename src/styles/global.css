@@ -1,0 +1,50 @@
+/* minimal reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+img, picture, svg {
+  display: block;
+  max-width: 100%;
+}
+
+body {
+  font-family: var(--wes-font-ui);
+  color: var(--wes-neutral-900);
+  background: var(--wes-white);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  text-align: left;
+}
+
+a, button {
+  color: var(--wes-purple);
+}
+
+button {
+  font-family: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid var(--wes-purple);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
