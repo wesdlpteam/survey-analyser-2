@@ -1,0 +1,70 @@
+.finding-row {
+  background: var(--wes-white);
+  border: 1px solid var(--wes-neutral-300);
+  border-radius: 10px;
+  padding: 0;
+  margin-bottom: 0.6rem;
+}
+
+.finding-row__summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.75rem 1rem;
+}
+
+.finding-row__summary::-webkit-details-marker {
+  display: none;
+}
+
+.finding-row__summary::before {
+  content: '▸';
+  color: var(--wes-purple);
+  transition: transform 0.15s ease;
+}
+
+.finding-row[open] > .finding-row__summary::before {
+  transform: rotate(90deg);
+}
+
+.finding-row__index {
+  font-weight: 700;
+  color: var(--wes-purple);
+  flex-shrink: 0;
+}
+
+.finding-row__body {
+  padding: 0 1rem 1rem;
+}
+
+.finding-row__comments-label {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.finding-row__comments-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.finding-row__comments-list li {
+  background: var(--wes-neutral-100);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+}
+
+.finding-row__comments-more {
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--wes-neutral-900);
+}
+
+.finding-row__empty {
+  color: var(--wes-neutral-900);
+  font-size: 0.9rem;
+}

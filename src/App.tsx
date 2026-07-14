@@ -2,13 +2,14 @@ import { useState, type KeyboardEvent } from 'react';
 import { useApp } from './store/appStore';
 import Landing from './ui/Landing';
 import QuarantinePanel from './ui/QuarantinePanel';
+import AuditTab from './ui/AuditTab';
 import ExploreTab from './ui/ExploreTab';
 import './App.css';
 
 type ReportTabId = 'audit' | 'explore' | 'ask';
 
-// Audit content lands in Task 8, Ask in Task 10 - both show a plain
-// placeholder here so the tab shell is real (and keyboard-testable) now.
+// Ask lands in Task 10 - it still shows a plain placeholder here so the tab
+// shell is real (and keyboard-testable) now.
 const TABS: { id: ReportTabId; label: string }[] = [
   { id: 'audit', label: 'Audit' },
   { id: 'explore', label: 'Explore' },
@@ -81,7 +82,7 @@ function Report() {
       </div>
 
       <div id="panel-audit" role="tabpanel" aria-labelledby="tab-audit" hidden={activeTab !== 'audit'} className="report__panel">
-        <p className="report__placeholder">Audit view is coming soon.</p>
+        <AuditTab />
       </div>
       <div
         id="panel-explore"

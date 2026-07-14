@@ -65,6 +65,14 @@ export interface AppState {
   restored: string[];
   setManualExcluded(ids: string[]): void;
   toggleRestore(questionId: string): void;
+
+  // --- Task 8: Audit tab cover title (additive) ---------------------------
+  // The editable audit report title (AuditTab's cover block pencil-to-input
+  // control). Lives in the store, not local component state, because Task
+  // 11's export needs the user's edited title, not the raw survey filename.
+  // Defaults to the survey's own title on load; cleared on reset().
+  reportTitle: string;
+  setReportTitle(title: string): void;
 }
 
 // Applies quarantine to the raw model, then layers manual overrides on top:
@@ -124,6 +132,8 @@ export function createAppStore(): UseBoundStore<StoreApi<AppState>> {
     rawModel: null,
     manualExcluded: [],
     restored: [],
+    reportTitle: '',
+    setReportTitle: (title) => set({ reportTitle: title }),
 
     async loadFile(file) {
       set({ phase: 'analysing', error: null });
@@ -140,6 +150,7 @@ export function createAppStore(): UseBoundStore<StoreApi<AppState>> {
           restored: [],
           phase: 'report',
           error: null,
+          reportTitle: `${model.title} — Audit Report`,
         });
       } catch (e) {
         const message = e instanceof ParseError ? e.message : GENERIC_LOAD_ERROR;
@@ -159,6 +170,7 @@ export function createAppStore(): UseBoundStore<StoreApi<AppState>> {
         restored: [],
         phase: 'report',
         error: null,
+        reportTitle: `${model.title} — Audit Report`,
       });
     },
 
@@ -175,6 +187,7 @@ export function createAppStore(): UseBoundStore<StoreApi<AppState>> {
         error: null,
         aiStatus: 'idle',
         aiError: null,
+        reportTitle: '',
       });
     },
 

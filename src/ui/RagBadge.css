@@ -1,0 +1,34 @@
+.rag-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.rag-badge--sm {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+.rag-badge--lg {
+  padding: 0.55rem 1.1rem;
+  font-size: 1.1rem;
+}
+
+/* AA-checked ink-on-tint pairs, same tokens as tokens.css's --rag-* set. */
+.rag-badge--green {
+  background: var(--rag-green-bg);
+  color: var(--rag-green-ink);
+}
+
+.rag-badge--amber {
+  background: var(--rag-amber-bg);
+  color: var(--rag-amber-ink);
+}
+
+.rag-badge--red {
+  background: var(--rag-red-bg);
+  color: var(--rag-red-ink);
+}

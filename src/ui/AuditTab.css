@@ -1,0 +1,201 @@
+.audit-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* --- cover block -------------------------------------------------------- */
+
+.audit-tab__cover {
+  background: var(--wes-purple);
+  color: var(--wes-white);
+  border-radius: var(--radius);
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.audit-tab__title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.audit-tab__title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--wes-white);
+}
+
+.audit-tab__title-edit {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.3rem;
+  border-radius: 6px;
+}
+
+.audit-tab__title-edit:hover {
+  background: rgb(255 255 255 / 0.12);
+}
+
+.audit-tab__title-input {
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--wes-neutral-900);
+  background: var(--wes-white);
+  border: none;
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  width: 100%;
+  max-width: 32rem;
+}
+
+.audit-tab__cover-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.audit-tab__cover-stat dt {
+  font-size: 0.8rem;
+  opacity: 0.85;
+  margin-bottom: 0.15rem;
+}
+
+.audit-tab__cover-stat dd {
+  font-size: 1.3rem;
+  font-weight: 700;
+  font-variant-numeric: proportional-nums;
+}
+
+.audit-tab__cover-overall {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.audit-tab__cover-overall-label {
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+/* --- shared section chrome ----------------------------------------------- */
+
+.audit-tab__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+/* Gold heading accent per the brand kit's type roles: a short "kicker" rule
+   sitting above the text, editorial-report style. Deliberately NOT a
+   left-border card accent (a common AI-generated-UI tell) and NOT an
+   underline (brand hard rule: no underlined headings). */
+.audit-tab__heading--gold {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.audit-tab__heading--gold::before {
+  content: '';
+  display: block;
+  width: 2.25rem;
+  height: 3px;
+  background: var(--wes-gold);
+  margin-bottom: 0.5rem;
+  border-radius: 2px;
+}
+
+.audit-tab__body-text {
+  max-width: 60rem;
+  line-height: 1.6;
+}
+
+/* --- RAG sections --------------------------------------------------------- */
+
+/* RAG state is carried by the RagBadge (colour + text label) inside the
+   header, not by the card chrome itself - a coloured side-border here would
+   just repeat the same signal in a heavier-handed, less accessible way. */
+.audit-section {
+  background: var(--wes-white);
+  border: 1px solid var(--wes-neutral-300);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  break-inside: avoid;
+}
+
+.audit-section__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.audit-section__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.audit-section__number {
+  color: var(--wes-purple);
+}
+
+.audit-section__badges {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.audit-section__ai-tag {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--wes-blue-dark);
+  background: var(--wes-tint-blue);
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+}
+
+.audit-section__justification {
+  color: var(--wes-neutral-900);
+  font-size: 0.9rem;
+}
+
+.audit-section__findings {
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- recommendations & methodology --------------------------------------- */
+
+.audit-tab__recommendations {
+  max-width: 60rem;
+  padding-left: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.audit-tab__quarantine-list {
+  padding-left: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.audit-tab__methodology {
+  border-top: 1px solid var(--wes-neutral-300);
+  padding-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
