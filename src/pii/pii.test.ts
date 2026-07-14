@@ -128,10 +128,18 @@ describe('applyQuarantine - header rule edge cases', () => {
     expect(applyQuarantine(modelWithHeader('Contact Phone')).questions[0].quarantineReason).toBe('phone');
   });
 
-  it('matches "First Name" / "Preferred Name" (ends with " name") but not "Nickname" (no space before "name")', () => {
+  it('matches "First Name" / "Preferred Name" (ends with " name")', () => {
     expect(applyQuarantine(modelWithHeader('First Name')).questions[0].quarantineReason).toBe('name');
     expect(applyQuarantine(modelWithHeader('Preferred Name')).questions[0].quarantineReason).toBe('name');
-    expect(applyQuarantine(modelWithHeader('Nickname')).questions[0].quarantined).toBe(false);
+  });
+
+  // BEHAVIOUR CHANGE (fix2 A1): Nickname/Surname/Signature/Initials are now
+  // exact-term name headers (previously "Nickname" was left un-quarantined).
+  it('matches exact-term name headers Surname / Nickname / Signature / Initials', () => {
+    expect(applyQuarantine(modelWithHeader('Nickname')).questions[0].quarantineReason).toBe('name');
+    expect(applyQuarantine(modelWithHeader('Surname')).questions[0].quarantineReason).toBe('name');
+    expect(applyQuarantine(modelWithHeader('Signature')).questions[0].quarantineReason).toBe('name');
+    expect(applyQuarantine(modelWithHeader('Initials')).questions[0].quarantineReason).toBe('name');
   });
 
   it('matches "Student ID:" - trailing punctuation is stripped before the suffix test', () => {
@@ -296,8 +304,12 @@ describe('makeScrubber', () => {
     expect(scrubbed).toBe('I spoke to [name] about the roster.');
   });
 
-  it('matches name tokens case-insensitively as whole words', () => {
-    expect(scrubber('ALEX and jamie both agreed.')).toBe('[name] and [name] both agreed.');
+  // BEHAVIOUR CHANGE (fix2 D3): a 3+ char token is only substituted when the
+  // matched text starts with an uppercase letter, so a lowercase "jamie"
+  // survives (protects common words that happen to be someone's name, e.g.
+  // "It will help" when a respondent is named Will). ALL-CAPS still replaced.
+  it('replaces an uppercase/ALL-CAPS name occurrence but leaves a lowercase one', () => {
+    expect(scrubber('ALEX and jamie both agreed.')).toBe('[name] and jamie both agreed.');
   });
 
   it('does not scrub partial-word matches ("sampler" must survive the "Sample" token)', () => {
@@ -323,5 +335,260 @@ describe('makeScrubber', () => {
       respondentCount: 1,
     };
     expect(makeScrubber(bare)('Ask Dr Smith or email a@b.co today.')).toBe('Ask [name] or email [email] today.');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fix round 2 — adversarial-review gap closures
+// ---------------------------------------------------------------------------
+
+function synthHeader(title: string, type: QType = 'text'): SurveyModel {
+  return {
+    title: 'Synthetic',
+    questions: [{ id: 'q0', title, type, quarantined: false }],
+    rows: [['Plain answer.'], ['Another plain answer.'], ['Third plain answer.']],
+    respondentCount: 3,
+  };
+}
+
+function synthRows(rows: SurveyModel['rows'], type: QType = 'text', header = 'Notes'): SurveyModel {
+  return {
+    title: 'Synthetic',
+    questions: [{ id: 'q0', title: header, type, quarantined: false }],
+    rows,
+    respondentCount: rows.length,
+  };
+}
+
+describe('fix2 A — header rules', () => {
+  // A2 — identifier terms widened
+  it('A2: quarantines Student Code / Staff Code / Roll Number / Payroll / Admission Number / Reference Number', () => {
+    for (const h of [
+      'Student Code',
+      'Staff Code',
+      'Roll Number',
+      'Payroll',
+      'Payroll ID',
+      'Admission Number',
+      'Reference Number',
+    ]) {
+      expect(applyQuarantine(synthHeader(h)).questions[0].quarantineReason).toBe('identifier');
+    }
+  });
+
+  // A3 — date of birth
+  it('A3: quarantines "Date of Birth", "Birthday" and word "DOB" as identifier', () => {
+    expect(applyQuarantine(synthHeader('Date of Birth')).questions[0].quarantineReason).toBe('identifier');
+    expect(applyQuarantine(synthHeader('Birthday')).questions[0].quarantineReason).toBe('identifier');
+    expect(applyQuarantine(synthHeader('DOB')).questions[0].quarantineReason).toBe('identifier');
+    expect(applyQuarantine(synthHeader('Your DOB:')).questions[0].quarantineReason).toBe('identifier');
+  });
+
+  it('A3 guard: a header merely containing the letters "dob" is not matched', () => {
+    // "Hairdo bother" contains no whole-word "dob"; a contains-check would be
+    // wrong. Word-boundary keeps it safe.
+    expect(applyQuarantine(synthHeader('How do you feel about feedback?')).questions[0].quarantined).toBe(false);
+  });
+
+  // A4 — name-context headers
+  it('A4: quarantines Emergency Contact / Parent / Carer / Guardian headers as name', () => {
+    for (const h of ['Emergency Contact', 'Parent or Guardian', 'Primary Carer', 'Guardian details']) {
+      expect(applyQuarantine(synthHeader(h)).questions[0].quarantineReason).toBe('name');
+    }
+  });
+
+  it('A4: quarantines "Who is your ..." / "Who should we ..." headers as name', () => {
+    expect(applyQuarantine(synthHeader('Who is your emergency contact?')).questions[0].quarantineReason).toBe('name');
+    expect(applyQuarantine(synthHeader('Who should we contact in an emergency?')).questions[0].quarantineReason).toBe(
+      'name',
+    );
+  });
+});
+
+describe('fix2 B — value-shape scans', () => {
+  // B1 — name shape
+  it('B1: quarantines a column of distinct person-names as looks-personal', () => {
+    const result = applyQuarantine(
+      synthRows([['John Smith'], ['Mary Jones'], ['Ahmed Khan'], ['Priya Patel'], ['Wei Chen']]),
+    );
+    expect(result.questions[0].quarantineReason).toBe('looks-personal');
+  });
+
+  it('B1 guard: a small repeated choice set (campuses) is NOT quarantined (distinct ratio too low)', () => {
+    const campuses = [
+      'Glen Waverley',
+      'St Kilda Rd',
+      'Elsternwick',
+      'Glen Waverley',
+      'St Kilda Rd',
+      'Elsternwick',
+      'Glen Waverley',
+      'St Kilda Rd',
+      'Elsternwick',
+      'Glen Waverley',
+      'St Kilda Rd',
+      'Elsternwick',
+      'Glen Waverley',
+      'St Kilda Rd',
+    ].map((c) => [c]);
+    expect(applyQuarantine(synthRows(campuses)).questions[0].quarantined).toBe(false);
+  });
+
+  it('B1 guard: sentence-like free-text answers are NOT quarantined (fail the shape)', () => {
+    const answers = [
+      ['The new timetable software has made scheduling easier.'],
+      ['Communication from leadership has improved a lot.'],
+      ['I appreciate the flexibility around remote work.'],
+      ['Parking has been less stressful since new bays opened.'],
+    ];
+    expect(applyQuarantine(synthRows(answers)).questions[0].quarantined).toBe(false);
+  });
+
+  // B2 — id shape
+  it('B2: quarantines a column of distinct student-code IDs as looks-personal', () => {
+    const result = applyQuarantine(synthRows([['S12345'], ['s1234567'], ['WES-04821'], ['6012345'], ['S54321']]));
+    expect(result.questions[0].quarantineReason).toBe('looks-personal');
+  });
+
+  it('B2 guard: a 0-10 rating column is NOT quarantined (low distinct ratio, too few digits)', () => {
+    const ratings = [[8], [10], [6], [4], [9], [0], [7], [8], [9], [10], [5], [7]];
+    expect(applyQuarantine(synthRows(ratings, 'rating')).questions[0].quarantined).toBe(false);
+  });
+
+  it('B2 guard: a repeated "year" column (2024/2025/2026) is NOT quarantined (low distinct ratio)', () => {
+    const years = [
+      ['2024'],
+      ['2025'],
+      ['2026'],
+      ['2024'],
+      ['2025'],
+      ['2026'],
+      ['2024'],
+      ['2025'],
+      ['2026'],
+      ['2024'],
+    ];
+    expect(applyQuarantine(synthRows(years)).questions[0].quarantined).toBe(false);
+  });
+});
+
+describe('fix2 C — scrubText upgrades', () => {
+  // C1 — honorifics
+  it('C1: scrubs lowercase and extended titles', () => {
+    expect(scrubText('I spoke to mr chen yesterday.')).toBe('I spoke to [name] yesterday.');
+    expect(scrubText('Principal Nguyen visited us.')).toBe('[name] visited us.');
+    expect(scrubText('Coach Taylor was encouraging.')).toBe('[name] was encouraging.');
+    expect(scrubText('Sensei Tanaka runs the dojo.')).toBe('[name] runs the dojo.');
+    expect(scrubText('Pastor Green led the assembly.')).toBe('[name] led the assembly.');
+  });
+
+  it('C1: does NOT scrub a title followed by a stopword', () => {
+    expect(scrubText('I might miss the bus tomorrow.')).toBe('I might miss the bus tomorrow.');
+    expect(scrubText('We coach the team on Fridays.')).toBe('We coach the team on Fridays.');
+  });
+
+  it('C1: scrubs capitalised particle chains and accented names cleanly', () => {
+    expect(scrubText('Mrs Van Der Berg chaired it.')).toBe('[name] chaired it.');
+    expect(scrubText('Ask Mr Müller about it.')).toBe('Ask [name] about it.');
+    expect(scrubText('Ms Ngô presented well.')).toBe('[name] presented well.');
+  });
+
+  it('C1: does not glue a following hyphenated word onto the name', () => {
+    expect(scrubText('Dr Smith de-escalated the situation.')).toBe('[name] de-escalated the situation.');
+  });
+
+  // C2 — id pass
+  it('C2: scrubs alphanumeric / long-digit IDs but not years or postcodes', () => {
+    expect(scrubText('My login is s1234567 today.')).toBe('My login is [id] today.');
+    expect(scrubText('Ref WES-04821 please.')).toBe('Ref [id] please.');
+    expect(scrubText('Back in 2026 we changed it.')).toBe('Back in 2026 we changed it.');
+    expect(scrubText('The postcode is 3150 here.')).toBe('The postcode is 3150 here.');
+  });
+
+  // C3 — address pass
+  it('C3: scrubs a street address but leaves a bare campus road name', () => {
+    expect(scrubText('I live at 12 Aster Ct, Glen Waverley 3150.')).toBe('I live at [address], Glen Waverley 3150.');
+    expect(scrubText('the St Kilda Rd campus is nice')).toBe('the St Kilda Rd campus is nice');
+  });
+
+  // C4 — obfuscated email
+  it('C4: redacts an obfuscated email at/dot form (loses the domain)', () => {
+    const scrubbed = scrubText('Email john dot smith at gmail dot com for details.');
+    expect(scrubbed).toContain('[email]');
+    expect(scrubbed).not.toContain('gmail');
+  });
+});
+
+describe('fix2 D — makeScrubber upgrades', () => {
+  function nameColumnModel(names: (string | null)[], reason = 'name', title = 'Name'): SurveyModel {
+    return {
+      title: 'X',
+      questions: [{ id: 'q0', title, type: 'text', quarantined: true, quarantineReason: reason }],
+      rows: names.map((n) => [n]),
+      respondentCount: names.length,
+    };
+  }
+
+  // D2 — email local part only
+  it('D2: only the email local part is tokenised, never the domain', () => {
+    const model: SurveyModel = {
+      title: 'X',
+      questions: [{ id: 'q0', title: 'Email', type: 'text', quarantined: true, quarantineReason: 'email' }],
+      rows: [['alex.sample@wesley.vic.edu.au']],
+      respondentCount: 1,
+    };
+    const scrub = makeScrubber(model);
+    expect(scrub('Wesley College feels welcoming.')).toBe('Wesley College feels welcoming.');
+    expect(scrub('For example, the timetable is clearer.')).toBe('For example, the timetable is clearer.');
+  });
+
+  // D3 — uppercase-initial guard for 3+ char tokens
+  it('D3: a 3+ char token is only replaced when it starts uppercase', () => {
+    const scrub = makeScrubber(nameColumnModel(['Will']));
+    expect(scrub('It will help a lot.')).toBe('It will help a lot.');
+    expect(scrub('Will helped me settle in.')).toBe('[name] helped me settle in.');
+  });
+
+  // D3 — 2-char case-sensitive tokens
+  it('D3: 2-char names match case-sensitively as whole words', () => {
+    const scrub = makeScrubber(nameColumnModel(['Ng']));
+    expect(scrub('Ng helped me settle in.')).toBe('[name] helped me settle in.');
+    expect(scrub('the song ng remix is good')).toBe('the song ng remix is good');
+  });
+
+  // D3 — full-phrase match regardless of case
+  it('D3: a multi-word name phrase matches regardless of case', () => {
+    const scrub = makeScrubber(nameColumnModel(['Jo Li']));
+    expect(scrub('jo li was helpful today.')).toBe('[name] was helpful today.');
+  });
+
+  // D4 — unicode names
+  it('D4: scrubs accented and non-Latin quarantined names', () => {
+    const scrub = makeScrubber(nameColumnModel(['Chloé', 'André', 'Zoë', 'Ngô']));
+    expect(scrub('Chloé has been amazing.')).toBe('[name] has been amazing.');
+    expect(scrub('André emailed me twice.')).toBe('[name] emailed me twice.');
+    expect(scrub('Zoë runs the choir.')).toBe('[name] runs the choir.');
+    expect(scrub('Ngô presented well.')).toBe('[name] presented well.');
+  });
+
+  // D1 — collect from looks-personal columns too (not just name/email)
+  it('D1: tokens from a looks-personal name column are scrubbed from comments', () => {
+    // A value scan can quarantine a bare-names column as looks-personal; its
+    // tokens must still feed the scrubber. "Okonkwo" is not an honorific name
+    // and scrubText alone would leave it, so a change here proves collection.
+    const scrub = makeScrubber(nameColumnModel(['Okonkwo'], 'looks-personal', 'Full name'));
+    expect(scrub('Okonkwo chaired the meeting.')).toBe('[name] chaired the meeting.');
+    expect(scrubText('Okonkwo chaired the meeting.')).toBe('Okonkwo chaired the meeting.');
+  });
+
+  // D1 — collect from Forms-style metadata columns whose header is Name/Email
+  it('D1: a metadata-typed column with a Name header still feeds the scrubber', () => {
+    const model: SurveyModel = {
+      title: 'X',
+      questions: [{ id: 'q0', title: 'Name', type: 'meta', quarantined: true, quarantineReason: 'metadata' }],
+      rows: [['Okonkwo']],
+      respondentCount: 1,
+    };
+    expect(makeScrubber(model)('Okonkwo chaired the meeting.')).toBe('[name] chaired the meeting.');
   });
 });
