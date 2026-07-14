@@ -46,7 +46,7 @@ export default function AskTab() {
     }
   }
 
-  function useChip(text: string) {
+  function applyChip(text: string) {
     setDraft(text);
     textareaRef.current?.focus();
   }
@@ -80,7 +80,7 @@ export default function AskTab() {
 
       <div className="chat-tab__chips">
         {STARTER_CHIPS.map((chip) => (
-          <button key={chip} type="button" className="chat-tab__chip" onClick={() => useChip(chip)}>
+          <button key={chip} type="button" className="chat-tab__chip" onClick={() => applyChip(chip)}>
             {chip}
           </button>
         ))}
