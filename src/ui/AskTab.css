@@ -8,15 +8,32 @@
 /* --- locked state (no key configured) -------------------------------------- */
 
 .chat-tab--locked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
   background: var(--wes-neutral-100);
   border: 1px solid var(--wes-neutral-300);
   border-radius: var(--radius);
-  padding: 2rem;
+  padding: 2.5rem 2rem;
   text-align: center;
+}
+
+.chat-tab__locked-icon {
+  color: var(--wes-purple);
+  margin-bottom: 0.25rem;
 }
 
 .chat-tab__locked-text {
   color: var(--wes-neutral-900);
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.chat-tab__locked-hint {
+  color: var(--wes-neutral-900);
+  font-size: 0.9rem;
+  max-width: 30rem;
 }
 
 /* --- message list ----------------------------------------------------------- */
@@ -106,10 +123,13 @@
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out-quart),
+    transform var(--dur-fast) var(--ease-out-quart);
 }
 
 .chat-tab__chip:hover {
   background: var(--wes-neutral-100);
+  transform: translateY(-1px);
 }
 
 /* --- input row ------------------------------------------------------------ */
@@ -140,6 +160,13 @@
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out-quart),
+    box-shadow var(--dur-fast) var(--ease-out-quart);
+}
+
+.chat-tab__send:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
 }
 
 .chat-tab__send:disabled {

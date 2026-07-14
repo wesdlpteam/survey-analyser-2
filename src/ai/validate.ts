@@ -89,7 +89,17 @@ function validateTheme(raw: unknown): AuditReport['themes'][number] | null {
   return { theme: t.theme, weight: t.weight as 'many' | 'some' | 'few', sampleQuotes: t.sampleQuotes };
 }
 
-export function validateAudit(raw: unknown, d: StatsDigest, ruleRags: Record<string, Rag>): AuditReport {
+// `model` (optional) is the AI model id that produced this reply. When given
+// it's stamped onto the returned report so downstream consumers (the export's
+// methodology line, the Audit tab footer) can name the model instead of
+// falling back to "unknown". Callers building a report from a non-AI source
+// omit it.
+export function validateAudit(
+  raw: unknown,
+  d: StatsDigest,
+  ruleRags: Record<string, Rag>,
+  model?: string,
+): AuditReport {
   if (typeof raw !== 'object' || raw === null) badResponse('not a JSON object');
   const r = raw as Record<string, unknown>;
 
@@ -121,5 +131,6 @@ export function validateAudit(raw: unknown, d: StatsDigest, ruleRags: Record<str
     themes,
     recommendations: r.recommendations as string[],
     source: 'ai',
+    ...(model !== undefined ? { model } : {}),
   };
 }

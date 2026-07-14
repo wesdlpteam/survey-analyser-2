@@ -47,7 +47,7 @@ export default function Landing() {
       </div>
 
       <div className="landing__hero">
-        <p className="landing__standfirst">Wesley Survey Analyser</p>
+        <p className="landing__standfirst">Made for Wesley College</p>
         <h1 className="landing__headline">Understand any survey in minutes.</h1>
         <p className="landing__body">
           Drop in a Microsoft Forms export and get a plain-English report: what people said, where the

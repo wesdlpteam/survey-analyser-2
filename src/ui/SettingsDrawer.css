@@ -4,7 +4,7 @@
   background: rgb(43 40 31 / 0.45);
   display: flex;
   justify-content: flex-end;
-  z-index: 100;
+  z-index: var(--z-modal);
 }
 
 .settings-drawer {
@@ -12,8 +12,27 @@
   width: min(24rem, 100%);
   height: 100%;
   padding: 1.5rem;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-lift);
   overflow-y: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .settings-drawer__overlay {
+    animation: wsa-fade 0.2s var(--ease-out-quart) both;
+  }
+  .settings-drawer {
+    animation: wsa-slide-in 0.28s var(--ease-out-expo) both;
+  }
+}
+
+@keyframes wsa-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes wsa-slide-in {
+  from { transform: translateX(1.5rem); opacity: 0; }
+  to { transform: none; opacity: 1; }
 }
 
 .settings-drawer__header {

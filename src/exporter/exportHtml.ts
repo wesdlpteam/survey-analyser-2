@@ -112,7 +112,11 @@ function renderTable(table: { head: string[]; rows: (string | number)[][] }): st
 // Renders whichever chart image is valid, or the same numbers as a plain
 // HTML table when no usable chart was captured for this question.
 function renderChartOrTable(imgSrc: string | null, alt: string, q: QuestionStats): string {
-  if (imgSrc) {
+  // Defense-in-depth: only ever emit an <img> for a genuine embedded raster
+  // data URI (what ChartCanvas.toDataURL always produces). Anything else - a
+  // non-image data: URI, an http/javascript: URL, a malformed value - falls
+  // back to the stats table rather than trusting the string as an image src.
+  if (imgSrc && imgSrc.startsWith('data:image/')) {
     return `<img class="wsa-chart" src="${escapeHtml(imgSrc)}" alt="${escapeHtml(alt)}" />`;
   }
   const table = statsTable(q);
@@ -188,7 +192,12 @@ body{margin:0;padding:0;background:#f7f5f2;color:var(--ink);font-family:"Graphik
 .wsa-cover-meta dt{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;opacity:.75;margin:0;}
 .wsa-cover-meta dd{margin:0;font-size:1.25rem;font-weight:600;}
 .wsa-overall{margin:0;}
-h2{color:var(--gold);border-bottom:1px solid var(--line);padding-bottom:8px;}
+/* Section headings: neutral-ink text with a short gold kicker rule above,
+   matching the app's AuditTab treatment. The previous gold-on-cream h2 only
+   reached ~2.2:1 (fails WCAG AA); ink #2B281F on the #f7f5f2 page is ~13.9:1.
+   No underline either (brand rule: headings are never underlined). */
+h2{color:var(--ink);margin:32px 0 12px;}
+h2::before{content:"";display:block;width:36px;height:3px;background:var(--gold);border-radius:2px;margin-bottom:10px;}
 .wsa-badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.75rem;font-weight:600;}
 .wsa-badge--green{background:var(--rag-green-bg);color:var(--rag-green-ink);}
 .wsa-badge--amber{background:var(--rag-amber-bg);color:var(--rag-amber-ink);}

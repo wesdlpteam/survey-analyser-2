@@ -327,6 +327,18 @@ describe('validate.ts', () => {
       expect(report.sections[0].ragSource).toBe('rules');
     });
 
+    it('stamps the model id onto the report when one is passed, so exports name the model not "unknown"', () => {
+      const digest = validateTestDigest();
+      const report = validateAudit(goodPayload('amber'), digest, { q1: 'amber' }, 'gpt-4o-mini');
+      expect(report.model).toBe('gpt-4o-mini');
+    });
+
+    it('leaves model undefined when no model id is passed', () => {
+      const digest = validateTestDigest();
+      const report = validateAudit(goodPayload('amber'), digest, { q1: 'amber' });
+      expect(report.model).toBeUndefined();
+    });
+
     it('a rag 1 step off the rule rag is kept as the AI\'s value and marked "ai-adjusted"', () => {
       const digest = validateTestDigest();
       // rule rag amber, AI says green -> distance 1 (allowed adjustment)

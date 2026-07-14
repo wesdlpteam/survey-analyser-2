@@ -2,17 +2,30 @@
   background: var(--wes-purple);
   border-bottom: 4px solid var(--wes-gold);
   padding: 1rem 1.5rem;
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
 }
 
 .app-header__title {
   color: var(--wes-white);
   font-size: 1.25rem;
+  letter-spacing: -0.01em;
 }
 
 .report {
   padding: 1.5rem;
   max-width: 72rem;
   margin: 0 auto;
+}
+
+@media (max-width: 30rem) {
+  .app-header {
+    padding: 0.85rem 1.15rem;
+  }
+  .report {
+    padding: 1.15rem;
+  }
 }
 
 .report__loading {
@@ -68,6 +81,15 @@
   padding: 0.5rem 1rem;
   font-size: 0.9rem;
   cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out-quart),
+    box-shadow var(--dur-fast) var(--ease-out-quart),
+    background var(--dur-fast) var(--ease-out-quart);
+}
+
+.report__reset:hover:not(:disabled),
+.report__export:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
 }
 
 .report__reset {
@@ -105,9 +127,17 @@
   font-weight: 600;
   color: var(--wes-neutral-900);
   cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out-quart),
+    border-bottom-color var(--dur-fast) var(--ease-out-quart);
 }
 
-.report__tab--active {
+.report__tab:hover {
+  color: var(--wes-purple);
+  border-bottom-color: var(--wes-neutral-300);
+}
+
+.report__tab--active,
+.report__tab--active:hover {
   color: var(--wes-purple);
   border-bottom-color: var(--wes-purple);
 }
@@ -115,4 +145,25 @@
 .report__placeholder {
   color: var(--wes-neutral-900);
   padding: 2rem 0;
+}
+
+/* Each tab panel eases in as it becomes the active one - a light "arrived"
+   cue, motion-safe (resting state is fully visible). */
+@media (prefers-reduced-motion: no-preference) {
+  .report__panel:not([hidden]) {
+    animation: wsa-rise 0.32s var(--ease-out-quart) both;
+  }
+}
+
+@media (max-width: 30rem) {
+  .report__toolbar {
+    flex-wrap: wrap;
+  }
+  .report__tabs {
+    overflow-x: auto;
+  }
+  .report__tab {
+    padding: 0.6rem 0.75rem;
+    white-space: nowrap;
+  }
 }

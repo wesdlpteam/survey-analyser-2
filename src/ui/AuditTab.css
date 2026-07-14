@@ -14,6 +14,16 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  /* A whisper of gold light in the top-right, so the purple cover reads as
+     crafted rather than a flat block. Sits under the text, well clear of it. */
+  background-image:
+    radial-gradient(70% 90% at 100% 0%, rgb(var(--wes-gold-rgb) / 0.22), transparent 60%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .audit-tab__cover {
+    animation: wsa-rise 0.45s var(--ease-out-quart) both;
+  }
 }
 
 .audit-tab__title-row {
@@ -130,6 +140,27 @@
   flex-direction: column;
   gap: 0.6rem;
   break-inside: avoid;
+  transition: transform var(--dur-mid) var(--ease-out-quart),
+    box-shadow var(--dur-mid) var(--ease-out-quart);
+}
+
+.audit-section:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lift);
+}
+
+/* Findings sections cascade in as the report builds. First five carry an
+   increasing delay; anything past that shares the last step so a long report
+   never feels slow. Motion-safe by construction. */
+@media (prefers-reduced-motion: no-preference) {
+  .audit-section {
+    animation: wsa-rise 0.5s var(--ease-out-quart) both;
+  }
+  .audit-section:nth-child(2) { animation-delay: 0.05s; }
+  .audit-section:nth-child(3) { animation-delay: 0.1s; }
+  .audit-section:nth-child(4) { animation-delay: 0.15s; }
+  .audit-section:nth-child(5) { animation-delay: 0.2s; }
+  .audit-section:nth-child(n + 6) { animation-delay: 0.25s; }
 }
 
 .audit-section__header {
@@ -155,11 +186,16 @@
   gap: 0.5rem;
 }
 
+/* Meta tag, not a state or an action - so it stays in the neutral/purple
+   family rather than borrowing a secondary hue (blue sat outside the
+   sanctioned purple/gold/neutral roles). Purple ink on the lightest neutral,
+   AA-verified. */
 .audit-section__ai-tag {
   font-size: 0.75rem;
   font-weight: 700;
-  color: var(--wes-blue-dark);
-  background: var(--wes-tint-blue);
+  color: var(--wes-purple);
+  background: var(--wes-neutral-100);
+  border: 1px solid var(--wes-neutral-300);
   border-radius: 999px;
   padding: 0.25rem 0.6rem;
 }
@@ -198,4 +234,17 @@
   flex-direction: column;
   gap: 0.75rem;
   font-size: 0.9rem;
+}
+
+@media (max-width: 30rem) {
+  .audit-tab__cover {
+    padding: 1.4rem;
+  }
+  .audit-tab__title,
+  .audit-tab__title-input {
+    font-size: 1.35rem;
+  }
+  .audit-tab__cover-meta {
+    gap: 1rem;
+  }
 }

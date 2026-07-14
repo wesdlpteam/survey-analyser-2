@@ -7,6 +7,14 @@
   white-space: nowrap;
 }
 
+/* The rating verdict pops in - a small, single spring-free scale. Motion-safe:
+   without the preference the badge is simply present at full size. */
+@media (prefers-reduced-motion: no-preference) {
+  .rag-badge {
+    animation: wsa-pop 0.34s var(--ease-out-quart) both;
+  }
+}
+
 .rag-badge--sm {
   padding: 0.3rem 0.7rem;
   font-size: 0.8rem;

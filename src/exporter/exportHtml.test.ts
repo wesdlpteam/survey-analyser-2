@@ -147,6 +147,24 @@ describe('buildExportHtml', () => {
     expect(html).toContain('Yes'); // choice option surfaces via the table fallback
   });
 
+  it('refuses to emit an <img> for a non-image src (e.g. a smuggled javascript:/data:text URI) and falls back to a table', () => {
+    const digest = makeDigest([choiceQ('q1', 'Which campus?')]);
+    const audit = makeAudit([makeSection()]);
+    const html = buildExportHtml({
+      audit,
+      digest,
+      title: 'Staff Survey',
+      // Neither a genuine data:image/ raster - the exporter must not trust
+      // either as an <img> source.
+      chartImages: { q1: 'javascript:alert(1)', 'audit:q1': 'data:text/html,<b>x</b>' },
+      generatedOn: GENERATED_ON,
+    });
+    expect(html).not.toContain('javascript:alert(1)');
+    expect(html).not.toContain('data:text/html');
+    expect(html).not.toMatch(/<img[^>]*src="(?!data:image\/)/);
+    expect(html).toContain('<table'); // stats table fallback took over
+  });
+
   it('never lets a planted secret-like string leak through, even smuggled onto a cloned digest/audit', () => {
     const digest = makeDigest([choiceQ('q1', 'Which campus?')]);
     const audit = makeAudit([makeSection()]);

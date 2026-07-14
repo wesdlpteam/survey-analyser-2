@@ -22,11 +22,33 @@ export default function SettingsDrawer({ onClose }: { onClose: () => void }) {
   const [mode, setMode] = useState<'preset' | 'custom'>(isPreset ? 'preset' : 'custom');
   const [customModel, setCustomModel] = useState(isPreset ? '' : aiModel);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     closeButtonRef.current?.focus();
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      // Focus trap: keep Tab / Shift+Tab cycling inside the dialog so focus
+      // can never walk out into the page behind it. Recomputed on each press
+      // so it stays correct when the custom-model input appears/disappears.
+      if (e.key !== 'Tab' || !dialogRef.current) return;
+      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
     }
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
@@ -53,6 +75,7 @@ export default function SettingsDrawer({ onClose }: { onClose: () => void }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-drawer-heading"
+        ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="settings-drawer__header">

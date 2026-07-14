@@ -29,6 +29,8 @@ export async function runAiAudit(
   const ruleRags: Record<string, Rag> = {};
   for (const q of d.questions) ruleRags[q.questionId] = questionRag(q) ?? 'amber';
 
-  const report = validateAudit(raw, d, ruleRags);
-  return { ...report, model };
+  // Model is threaded into validateAudit so the returned report is complete
+  // (source 'ai' + model) at the point of validation - no post-hoc spread to
+  // forget or drop on a later refactor.
+  return validateAudit(raw, d, ruleRags, model);
 }

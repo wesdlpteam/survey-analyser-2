@@ -9,10 +9,24 @@
   --wes-success:#58C337; --wes-warning:#F0A54F; --wes-error:#E83534;
   --wes-tint-amber:#FFEDBC; --wes-tint-peach:#FFDAB5; --wes-tint-rose:#FDAFBD; --wes-tint-blue:#CBDAFF; --wes-tint-green:#CFE9D3;
   --wes-ink-gold:#7A5012; --wes-ink-rose:#8F1D2E; --wes-ink-rust:#8A4B12;
+  /* Channel values for the brand hues, so a translucent glow/tint can be
+     built with rgb(var(--x) / a) instead of a hard-coded literal. */
+  --wes-gold-rgb:197 159 64;
+  --wes-purple-rgb:79 39 89;
   --wes-font-ui:"Graphik","Segoe UI",system-ui,sans-serif;
   /* derived (this app) */
   --rag-green-bg:#e7f6e2; --rag-green-ink:#2c6b1a;
   --rag-amber-bg:#fdf0dd; --rag-amber-ink:#8a5410;
   --rag-red-bg:#fde4e4; --rag-red-ink:#a31817;
-  --radius:14px; --shadow:0 2px 12px rgb(43 40 31 / .08);
+  --radius:14px;
+  --shadow:0 2px 12px rgb(43 40 31 / .08);
+  /* Lift shadow for card hover - a touch deeper + a hairline purple ring. */
+  --shadow-lift:0 10px 28px rgb(43 40 31 / .12), 0 2px 6px rgb(43 40 31 / .08);
+  --wes-gold-glow:rgb(var(--wes-gold-rgb) / .25);
+  /* Motion: ease-out curves only (no bounce/elastic), product-scale timings. */
+  --ease-out-quart:cubic-bezier(.25,1,.5,1);
+  --ease-out-expo:cubic-bezier(.16,1,.3,1);
+  --dur-fast:150ms; --dur-mid:220ms;
+  /* Semantic z-index scale (low -> high). */
+  --z-sticky:20; --z-modal-backdrop:90; --z-modal:100;
 }

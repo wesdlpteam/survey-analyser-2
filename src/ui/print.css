@@ -103,4 +103,20 @@
     break-before: avoid;
     page-break-before: avoid;
   }
+
+  /* Methodology & privacy is the closing document section - start it on a
+     fresh page so the notes and any excluded-column list read as their own
+     appendix rather than crowding the tail of the recommendations page. */
+  .audit-tab__methodology {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  /* Reveal/pop animations are a screen affordance only. Force every element to
+     its resting state for print: a section forced visible here (e.g. the user
+     printed while another tab was active, so its entrance animation never ran)
+     can never paper-print mid-fade or blank. */
+  * {
+    animation: none !important;
+  }
 }

@@ -4,6 +4,13 @@
   border-radius: var(--radius);
   padding: 1rem;
   height: 100%;
+  transition: transform var(--dur-mid) var(--ease-out-quart),
+    box-shadow var(--dur-mid) var(--ease-out-quart);
+}
+
+.chart-canvas:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lift);
 }
 
 /* Fixed height includes the axis band, so the card never scrolls - the

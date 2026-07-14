@@ -1,6 +1,10 @@
 .landing {
   min-height: 100%;
   background: var(--wes-white);
+  /* The hero glow (::before) is deliberately wider than the hero so it reads
+     as atmosphere; clip its horizontal bleed here so it can never push a
+     sideways scrollbar at narrow widths. */
+  overflow-x: hidden;
 }
 
 .landing__topbar {
@@ -20,40 +24,87 @@
   justify-content: center;
   color: var(--wes-purple);
   cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out-quart),
+    transform var(--dur-fast) var(--ease-out-quart),
+    box-shadow var(--dur-fast) var(--ease-out-quart);
 }
 
 .landing__settings-btn:hover {
   border-color: var(--wes-purple);
+  transform: rotate(30deg);
+  box-shadow: var(--shadow);
 }
 
 .landing__hero {
+  position: relative;
   max-width: 40rem;
   margin: 0 auto;
-  padding: 1.5rem 1.5rem 4rem;
+  padding: 2.5rem 1.5rem 4rem;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
 }
 
+/* Hero moment: a soft, slow-drifting wash of the two brand hues sitting
+   BEHIND the text. Kept at low alpha + blurred so it reads as atmosphere,
+   never as a panel, and never dents the contrast of the ink on top (which
+   still sits on the white body surface). */
+.landing__hero::before {
+  content: '';
+  position: absolute;
+  inset: -8% -22% auto -22%;
+  height: 22rem;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(58% 52% at 12% 0%, rgb(var(--wes-purple-rgb) / 0.12), transparent 70%),
+    radial-gradient(50% 46% at 92% 12%, rgb(var(--wes-gold-rgb) / 0.16), transparent 72%);
+  filter: blur(8px);
+}
+
+.landing__hero > * {
+  position: relative;
+  z-index: 1;
+}
+
 .landing__standfirst {
   color: var(--wes-purple);
   font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  font-size: 0.85rem;
+  letter-spacing: 0.01em;
+  font-size: 0.95rem;
 }
 
 .landing__headline {
   color: var(--wes-ink-gold);
-  font-size: clamp(1.9rem, 4vw, 2.75rem);
-  line-height: 1.1;
+  font-size: clamp(2.2rem, 5.5vw, 3.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
   font-weight: 700;
+  text-wrap: balance;
+  max-width: 20ch;
 }
 
 .landing__body {
   color: var(--wes-neutral-900);
-  font-size: 1.05rem;
+  font-size: 1.08rem;
   max-width: 34rem;
+  text-wrap: pretty;
+}
+
+/* Staggered arrival for the hero stack - opt-in, motion-safe. The resting
+   style (full opacity, no offset) is the default; the animation only exists
+   when motion is welcome, so reduced-motion users get the finished layout
+   with nothing to fire. */
+@media (prefers-reduced-motion: no-preference) {
+  .landing__standfirst,
+  .landing__headline,
+  .landing__body,
+  .landing__dropzone {
+    animation: wsa-rise 0.5s var(--ease-out-quart) both;
+  }
+  .landing__headline { animation-delay: 0.06s; }
+  .landing__body { animation-delay: 0.12s; }
+  .landing__dropzone { animation-delay: 0.18s; }
 }
 
 .landing__dropzone {
@@ -67,13 +118,19 @@
   border-radius: var(--radius);
   padding: 2.5rem 1.5rem;
   cursor: pointer;
-  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  transition: box-shadow var(--dur-fast) var(--ease-out-quart),
+    border-color var(--dur-fast) var(--ease-out-quart),
+    transform var(--dur-fast) var(--ease-out-quart);
 }
 
 .landing__dropzone:hover,
 .landing__dropzone--dragging {
   border-color: var(--wes-gold);
-  box-shadow: 0 0 0 4px rgb(197 159 64 / 0.25);
+  box-shadow: 0 0 0 4px var(--wes-gold-glow);
+}
+
+.landing__dropzone--dragging {
+  transform: translateY(-2px);
 }
 
 .landing__dropzone-text {
@@ -87,11 +144,44 @@
 }
 
 .landing__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
   background: var(--rag-red-bg);
   color: var(--rag-red-ink);
   border-radius: 10px;
   padding: 0.75rem 1rem;
   font-size: 0.95rem;
+}
+
+.landing__error::before {
+  content: '⚠';
+  font-size: 1rem;
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .landing__error {
+    animation: wsa-rise 0.28s var(--ease-out-quart) both;
+  }
+}
+
+/* --- narrow screens (down to 360px) -------------------------------------- */
+@media (max-width: 30rem) {
+  .landing__hero {
+    padding: 1.75rem 1.15rem 3rem;
+    gap: 1rem;
+  }
+  .landing__topbar {
+    padding: 0.85rem 1.15rem 0;
+  }
+  .landing__dropzone {
+    padding: 2rem 1rem;
+  }
+  .landing__body {
+    font-size: 1rem;
+  }
 }
 
 .landing__context {
