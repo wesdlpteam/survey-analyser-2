@@ -60,13 +60,30 @@ describe('buildFallbackAudit (fixture staff survey)', () => {
     expect(section?.findings[0].text).toBe('The most common theme was "new" (mentioned 5 times).');
   });
 
-  it('every red/amber section produces a matching recommendation naming its title', () => {
-    const nonGreen = report.sections.filter((s) => s.rag !== 'green');
-    expect(report.recommendations).toHaveLength(nonGreen.length);
-    expect(nonGreen.length).toBeGreaterThan(0);
-    for (const section of nonGreen) {
-      expect(report.recommendations.some((r) => r.includes(`"${section.title}"`))).toBe(true);
+  it('every red/amber rating/text section produces a matching recommendation naming its title', () => {
+    // Fixture: 3 amber ratings + could-improve text (amber, ratio 3/7) = 4.
+    // Working-well text is green, so it produces none.
+    const actionable = [
+      'How satisfied are you with communication? (1-5)',
+      'I feel supported by leadership.',
+      'How likely are you to recommend working here? (0-10)',
+      'What could be improved?',
+    ];
+    expect(report.recommendations).toHaveLength(actionable.length);
+    for (const title of actionable) {
+      expect(report.recommendations.some((r) => r.includes(`"${title}"`))).toBe(true);
     }
+  });
+
+  it('never recommends "looking closer" at informational choice/numeric questions (no rating signal)', () => {
+    const informational = ['Which campus are you based at?', 'Your role', 'Which resources do you use?'];
+    for (const title of informational) {
+      expect(report.recommendations.some((r) => r.includes(`"${title}"`))).toBe(false);
+    }
+  });
+
+  it('pluralises the respondent count in the executive summary (14 -> people)', () => {
+    expect(report.executiveSummary).toContain('14 people responded');
   });
 
   it('all three rating sections are amber (57.1%/57.1%/64.3% are all below the 75% green threshold)', () => {
@@ -95,7 +112,7 @@ describe('buildFallbackAudit (fixture staff survey)', () => {
 });
 
 describe('buildFallbackAudit (synthetic: no analysable questions)', () => {
-  it('still produces a non-empty executive summary and no crash', () => {
+  it('still produces a non-empty executive summary (singular "1 person") and no crash', () => {
     const emptyDigest = computeStats({
       title: 'empty',
       questions: [{ id: 'q0', title: 'Internal note', type: 'meta', quarantined: false }],
@@ -105,7 +122,38 @@ describe('buildFallbackAudit (synthetic: no analysable questions)', () => {
     const report = buildFallbackAudit(emptyDigest);
     expect(report.sections).toHaveLength(0);
     expect(report.executiveSummary.length).toBeGreaterThan(0);
+    expect(report.executiveSummary).toContain('1 person responded');
+    expect(report.executiveSummary).not.toContain('1 people');
     expect(report.recommendations).toHaveLength(0);
     expect(report.source).toBe('rules');
+  });
+});
+
+describe('buildFallbackAudit (synthetic: text-only survey, no ratings)', () => {
+  it('describes the overall picture in plain words, never internal colour codes', () => {
+    const textOnly = computeStats({
+      title: 'text only',
+      questions: [{ id: 'q0', title: 'Comment', type: 'text', quarantined: false }],
+      rows: [['This was great and helpful.'], ['Also great.']],
+      respondentCount: 2,
+    });
+    const report = buildFallbackAudit(textOnly);
+    // Both comments score pos, no negs -> overall green -> plain word "positive".
+    expect(report.executiveSummary).toContain('positive');
+    expect(report.executiveSummary).not.toMatch(/\b(green|amber|red)\b/i);
+  });
+
+  it('a choice-only survey (amber "no signal") reads as "mixed", not "amber"', () => {
+    const choiceOnly = computeStats({
+      title: 'choice only',
+      questions: [{ id: 'q0', title: 'Pick one', type: 'choice', quarantined: false }],
+      rows: [['A'], ['B']],
+      respondentCount: 2,
+    });
+    const report = buildFallbackAudit(choiceOnly);
+    expect(report.executiveSummary).toContain('mixed');
+    expect(report.executiveSummary).not.toMatch(/\b(green|amber|red)\b/i);
+    // And the informational choice section must not generate a recommendation.
+    expect(report.recommendations).toHaveLength(0);
   });
 });

@@ -3,7 +3,7 @@
 // produce, so the UI never has to know which source built the report.
 // Every sentence here is derived directly from the digest's own numbers;
 // nothing calls an AI.
-import { overallRag, questionRag } from '../ratings/rag';
+import { overallRag, questionRag, type Rag } from '../ratings/rag';
 import type {
   ChoiceStats,
   NumericStats,
@@ -147,8 +147,17 @@ function pickBestAndWeakest(ratingQuestions: (QuestionStats & RatingStats)[]) {
   return { best, weakest };
 }
 
+// The exec summary is user-facing copy — plain English only, so the
+// internal RAG colour words never leak into it.
+const OVERALL_PLAIN: Record<Rag, string> = {
+  green: 'positive',
+  amber: 'mixed',
+  red: 'concerning',
+};
+
 function buildExecutiveSummary(d: StatsDigest, ratingQuestions: (QuestionStats & RatingStats)[]): string {
-  const sentences: string[] = [`${d.respondentCount} people responded to this survey.`];
+  const people = d.respondentCount === 1 ? '1 person' : `${d.respondentCount} people`;
+  const sentences: string[] = [`${people} responded to this survey.`];
 
   if (d.overallFavourablePct !== null) {
     sentences.push(`Overall, ${d.overallFavourablePct}% of rated responses were favourable.`);
@@ -166,16 +175,23 @@ function buildExecutiveSummary(d: StatsDigest, ratingQuestions: (QuestionStats &
     }
   } else {
     // No rating questions to name a best/weakest area — fall back to the
-    // whole-survey colour so the summary still says something meaningful.
-    sentences.push(`Overall, the results look ${overallRag(d)}.`);
+    // whole-survey rating, translated into a plain word so the internal
+    // colour code never reaches the reader.
+    sentences.push(`Overall, the responses look ${OVERALL_PLAIN[overallRag(d)]}.`);
   }
 
   return sentences.join(' ');
 }
 
-function buildRecommendations(sections: AuditSection[]): string[] {
+// Recommendations are driven by the REAL rating signal, not the displayed
+// section colour: choice/numeric sections carry the amber "no signal"
+// default (questionRag(q) === null), and telling the reader to "look
+// closer" at neutral information would paint it as a warning — so those
+// sections are skipped. questions and sections are parallel arrays
+// (sections is built by mapping over d.questions), so index-zipping is safe.
+function buildRecommendations(questions: QuestionStats[], sections: AuditSection[]): string[] {
   return sections
-    .filter((s) => s.rag !== 'green')
+    .filter((s, i) => questionRag(questions[i]) !== null && s.rag !== 'green')
     .map((s) => `Look closer at "${s.title}" — ${s.ragJustification}`);
 }
 
@@ -188,7 +204,7 @@ export function buildFallbackAudit(d: StatsDigest): AuditReport {
     overall: overallRag(d),
     sections,
     themes: buildThemes(d.questions),
-    recommendations: buildRecommendations(sections),
+    recommendations: buildRecommendations(d.questions, sections),
     source: 'rules',
   };
 }
