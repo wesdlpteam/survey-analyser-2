@@ -7,12 +7,10 @@ import type { ChartConfiguration } from 'chart.js';
 import { segmentStats, type QuestionStats, type TextStats } from '../stats/engine';
 import { useApp } from '../store/appStore';
 import { ChartCanvas } from './charts/ChartCanvas';
-import { choiceChart, numericChart, ratingChart, segmentChart } from './charts/chartConfig';
+import { binNumeric, choiceChart, numericChart, ratingChart, segmentChart } from './charts/chartConfig';
 import KpiTiles from './KpiTiles';
 import CommentBrowser from './CommentBrowser';
 import './ExploreTab.css';
-
-const MAX_NUMERIC_BINS = 10;
 
 interface ChartCard {
   questionId: string;
@@ -20,31 +18,6 @@ interface ChartCard {
   config: ChartConfiguration;
   ariaLabel: string;
   tableFallback: { head: string[]; rows: (string | number)[][] };
-}
-
-// Bins raw numeric values into at most 10 integer-boundary bins. A span of
-// <=10 distinct integers gets one bin per integer (reads exactly like a
-// rating distribution); a wider span splits into 10 equal integer-width
-// buckets.
-function binNumeric(values: number[]): { label: string; count: number }[] {
-  if (values.length === 0) return [];
-  const min = Math.floor(Math.min(...values));
-  const max = Math.ceil(Math.max(...values));
-  const span = max - min;
-  if (span === 0) return [{ label: String(min), count: values.length }];
-
-  const binCount = Math.min(MAX_NUMERIC_BINS, span);
-  const width = span / binCount;
-  const counts = new Array<number>(binCount).fill(0);
-  for (const v of values) {
-    const idx = Math.min(binCount - 1, Math.max(0, Math.floor((v - min) / width)));
-    counts[idx]++;
-  }
-  return counts.map((count, i) => {
-    const lo = Math.round(min + i * width);
-    const hi = Math.round(min + (i + 1) * width);
-    return { label: hi - lo <= 1 ? String(lo) : `${lo}–${hi}`, count };
-  });
 }
 
 export default function ExploreTab() {

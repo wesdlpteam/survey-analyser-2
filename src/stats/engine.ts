@@ -17,6 +17,13 @@ export interface RatingStats {
   answered: number;
   mean: number;
   median: number;
+  // The scale bounds favourability was classified against: the question's
+  // declared scale when present, otherwise the observed min/max. Downstream
+  // colouring (charts) must use these, never re-derive bounds from the
+  // distribution - responses that don't span the scale would shift the
+  // fav/unfav cutoffs and contradict favourablePct.
+  scaleMin: number;
+  scaleMax: number;
   distribution: { value: number; label?: string; count: number; pct: number }[];
   favourablePct: number;
   neutralPct: number;
@@ -169,6 +176,8 @@ function computeRatingStats(model: SurveyModel, question: Question, colIndex: nu
     answered,
     mean: answered === 0 ? 0 : round2(mean(raw)),
     median: answered === 0 ? 0 : round2(median(raw)),
+    scaleMin: min,
+    scaleMax: max,
     distribution,
     favourablePct: answered === 0 ? 0 : round1((fav / answered) * 100),
     neutralPct: answered === 0 ? 0 : round1((neutral / answered) * 100),

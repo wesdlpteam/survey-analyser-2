@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ChoiceStats, RatingStats, SegmentGroup } from '../../stats/engine';
 import {
+  binNumeric,
   CATEGORICAL_PALETTE,
   choiceChart,
   GOLD,
@@ -61,6 +62,8 @@ describe('ratingChart', () => {
     answered: 14,
     mean: 3.57,
     median: 4,
+    scaleMin: 1,
+    scaleMax: 5,
     distribution: [
       { value: 1, count: 1, pct: 7.1 },
       { value: 2, count: 2, pct: 14.3 },
@@ -103,6 +106,8 @@ describe('ratingChart', () => {
       answered: 5,
       mean: 3,
       median: 3,
+      scaleMin: 1,
+      scaleMax: 5,
       distribution: [
         { value: 1, label: 'Strongly disagree', count: 1, pct: 20 },
         { value: 3, label: 'Neither agree nor disagree', count: 1, pct: 20 },
@@ -115,6 +120,79 @@ describe('ratingChart', () => {
     };
     const config = ratingChart(likert);
     expect(config.data.labels).toEqual(['Strongly disagree', 'Neither agree nor disagree', 'Strongly agree']);
+  });
+
+  it('classifies against the DECLARED scale bounds, not the observed distribution (reviewer regression)', () => {
+    // 0-10 scale where nobody answered below 6. Engine rule with min=0,
+    // max=10: fav >= 7, unfav <= 3 - so 6 is NEUTRAL and 7-10 are FAV, and
+    // favourablePct here is 80 (4 of 5). Recomputing bounds from the
+    // observed values (min=6, max=10, span=4) would instead paint 6 and 7
+    // red - contradicting the engine's own favourablePct on the same screen.
+    const skewed: RatingStats & { title: string } = {
+      kind: 'rating',
+      title: 'How likely are you to recommend us? (0-10)',
+      answered: 5,
+      mean: 8,
+      median: 8,
+      scaleMin: 0,
+      scaleMax: 10,
+      distribution: [
+        { value: 6, count: 1, pct: 20 },
+        { value: 7, count: 1, pct: 20 },
+        { value: 8, count: 1, pct: 20 },
+        { value: 9, count: 1, pct: 20 },
+        { value: 10, count: 1, pct: 20 },
+      ],
+      favourablePct: 80,
+      neutralPct: 20,
+      unfavourablePct: 0,
+    };
+    const config = ratingChart(skewed);
+    expect(config.data.datasets[0].backgroundColor).toEqual([
+      RAG_NEUTRAL_INK, // 6: > 0.3*10, < 0.7*10
+      RAG_FAV_INK, // 7 = 0 + 0.7*10
+      RAG_FAV_INK,
+      RAG_FAV_INK,
+      RAG_FAV_INK,
+    ]);
+  });
+});
+
+describe('binNumeric', () => {
+  it('gives one bin per integer when the discrete range fits (1..5 -> 5 bins labelled 1-5)', () => {
+    expect(binNumeric([1, 2, 3, 4, 5])).toEqual([
+      { label: '1', count: 1 },
+      { label: '2', count: 1 },
+      { label: '3', count: 1 },
+      { label: '4', count: 1 },
+      { label: '5', count: 1 },
+    ]);
+  });
+
+  it('counts repeats into their own integer bin, including the max value', () => {
+    expect(binNumeric([1, 1, 2, 5, 5, 5])).toEqual([
+      { label: '1', count: 2 },
+      { label: '2', count: 1 },
+      { label: '3', count: 0 },
+      { label: '4', count: 0 },
+      { label: '5', count: 3 },
+    ]);
+  });
+
+  it('min=max collapses to a single bin', () => {
+    expect(binNumeric([7, 7, 7])).toEqual([{ label: '7', count: 3 }]);
+  });
+
+  it('a wide range compresses to at most 10 bins and the max value lands in the LAST bin', () => {
+    const values = [0, 3, 12, 25, 25, 25]; // span 25 -> 10 bins of width 2.5
+    const bins = binNumeric(values);
+    expect(bins).toHaveLength(10);
+    expect(bins[bins.length - 1].count).toBe(3); // all three 25s in the last bin
+    expect(bins.reduce((sum, b) => sum + b.count, 0)).toBe(values.length); // nothing lost
+  });
+
+  it('returns [] for no values', () => {
+    expect(binNumeric([])).toEqual([]);
   });
 });
 

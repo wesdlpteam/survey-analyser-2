@@ -79,6 +79,10 @@ describe('computeStats (fixture staff survey)', () => {
     expect(stats.favourablePct).toBe(57.1);
     expect(stats.unfavourablePct).toBe(21.4);
     expect(stats.neutralPct).toBe(21.4);
+    // The declared scale bounds favourability was classified against - the
+    // chart layer recolours bars with exactly these, never observed values.
+    expect(stats.scaleMin).toBe(1);
+    expect(stats.scaleMax).toBe(5);
     expect(stats.distribution).toEqual([
       { value: 1, count: 1, pct: 7.1 },
       { value: 2, count: 2, pct: 14.3 },
@@ -116,6 +120,8 @@ describe('computeStats (fixture staff survey)', () => {
     expect(stats.favourablePct).toBe(64.3);
     expect(stats.unfavourablePct).toBe(7.1);
     expect(stats.neutralPct).toBe(28.6);
+    expect(stats.scaleMin).toBe(0);
+    expect(stats.scaleMax).toBe(10);
   });
 
   it('computes resources (multiChoice) token counts/pcts (pct = count/answered, not count/total tokens)', () => {

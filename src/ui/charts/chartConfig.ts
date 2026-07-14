@@ -93,9 +93,12 @@ export function choiceChart(s: ChoiceStats & { title: string }): ChartConfigurat
 }
 
 export function ratingChart(s: RatingStats & { title: string }): ChartConfiguration {
-  const values = s.distribution.map((d) => d.value);
-  const min = values.length ? Math.min(...values) : 0;
-  const max = values.length ? Math.max(...values) : 0;
+  // Classify with the DECLARED scale bounds the engine used (RatingStats
+  // carries them as scaleMin/scaleMax), never bounds re-derived from the
+  // observed distribution - when answers don't span the scale (e.g. a 0-10
+  // question answered only 6-10), observed bounds would shift the fav/unfav
+  // cutoffs and paint bars a colour that contradicts favourablePct.
+  const { scaleMin: min, scaleMax: max } = s;
 
   return {
     type: 'bar',
@@ -136,8 +139,45 @@ export function ratingChart(s: RatingStats & { title: string }): ChartConfigurat
 // layout but uses one neutral brand hue throughout - the dataviz skill's
 // "compare magnitude -> sequential, one hue" rule, which for a single
 // series degenerates to the same "one brand hue, no legend" treatment as
-// choiceChart. ExploreTab does the binning (it needs raw model rows, which
-// this pure function never touches) and calls this with the result.
+// choiceChart. ExploreTab extracts raw values from model rows and calls
+// binNumeric + this with the result.
+const MAX_NUMERIC_BINS = 10;
+
+// Bins raw numeric values for numericChart. When the integer range fits in
+// MAX_NUMERIC_BINS (span+1 distinct integers <= 10), every integer gets its
+// own bin - including the max, so 1..5 yields exactly 5 bars labelled 1-5.
+// Wider ranges split into 10 equal-width buckets with an inclusive top edge
+// (the max value always lands in the LAST bin, never merged into the
+// penultimate one).
+export function binNumeric(values: number[]): { label: string; count: number }[] {
+  if (values.length === 0) return [];
+  const min = Math.floor(Math.min(...values));
+  const max = Math.ceil(Math.max(...values));
+  const span = max - min;
+
+  if (span + 1 <= MAX_NUMERIC_BINS) {
+    // One bin per integer, min..max inclusive. Non-integer values count
+    // toward their nearest integer's bin.
+    const counts = new Array<number>(span + 1).fill(0);
+    for (const v of values) counts[Math.min(span, Math.max(0, Math.round(v) - min))]++;
+    return counts.map((count, i) => ({ label: String(min + i), count }));
+  }
+
+  const width = span / MAX_NUMERIC_BINS;
+  const counts = new Array<number>(MAX_NUMERIC_BINS).fill(0);
+  for (const v of values) {
+    // Top edge inclusive: v === max would compute index MAX_NUMERIC_BINS;
+    // clamp it into the last bin.
+    const idx = Math.min(MAX_NUMERIC_BINS - 1, Math.max(0, Math.floor((v - min) / width)));
+    counts[idx]++;
+  }
+  return counts.map((count, i) => {
+    const lo = Math.round(min + i * width);
+    const hi = Math.round(min + (i + 1) * width);
+    return { label: hi - lo <= 1 ? String(lo) : `${lo}–${hi}`, count };
+  });
+}
+
 export function numericChart(bins: { label: string; count: number }[], title: string): ChartConfiguration {
   return {
     type: 'bar',
