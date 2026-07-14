@@ -163,11 +163,12 @@ export function sampleModel(): SurveyModel;            // parsed fixture, for de
 ```ts
 export function applyQuarantine(model: SurveyModel): SurveyModel; // returns copy, sets quarantined+reason
 export function scrubText(text: string): string;
+export function makeScrubber(model: SurveyModel): (text: string) => string; // scrubText + exact-word removal of values found in quarantined name/email columns (tokens ≥3 chars, case-insensitive) → '[name]'
 ```
 
-**Column rules (quarantine, with reason):** header equals/contains `email`/`e-mail` → `email`; header equals `name` or ends with ` name` (first/last/full/student/preferred/your name) → `name`; contains `phone`/`mobile` → `phone`; equals `id`, ends with ` id`, contains `student number`/`staff number`/`username`/`ip address` → `identifier`; all `meta`-type columns → `metadata`. Value scan: >30% of non-empty values match email regex `/^[^\s@]+@[^\s@]+\.[^\s@]+$/` or phone regex `/(\+?\d[\d\s-]{7,})/` → quarantine reason `looks-personal`.
+**Column rules (quarantine, with reason)** — hardened after adversarial review; `src/pii/pii.test.ts` (70+ tests) is the full behavioural contract: header rules for email / name (incl. surname, nickname, signature, initials, parent/carer/guardian/emergency-contact, "who is your…") / phone / identifier (incl. student code, roll number, payroll, id-number variants, date of birth) / metadata; headers normalised (lowercase, trailing punctuation stripped), person-words word-boundary matched. Value scans on ALL cells via `String(v).trim()`: >30% email/phone shapes; ≥60% person-NAME-shape with ≥50% distinct ratio; ≥60% ID-shape (`[A-Za-z]{0,3}-?\d{4,}`) with ≥80% distinct ratio → `looks-personal`. Guards: repeated small choice sets and sentence-like answers never quarantined.
 
-**scrubText:** emails → `[email]`; phone sequences (8+ digits allowing spaces/dashes, optional `+`) → `[phone]`; honorific names `/\b(Mr|Mrs|Ms|Miss|Dr|Prof)\.?\s+[A-Z][a-z]+/g` → `[name]`.
+**scrubText / makeScrubber:** unicode-aware passes in order: emails → obfuscated emails → IDs (`[id]`) → phones → street addresses (`[address]`) → honorific names (`[name]`; wide title list incl. Principal/Coach/Mx, lowercase titles with stopword guard, particles, accents). `makeScrubber(model)` additionally erases tokens and full phrases from quarantined name/email/identifier/looks-personal column values (email local-part only; ≥3-char tokens uppercase-initial-matched, 2-char tokens case-sensitive). Accepted residual risks are listed in a comment atop `src/pii/scrub.ts` — Task 6 privacy statement and Task 8 methodology note must describe scrubbing as best-effort and point to manual column exclusion.
 
 - [ ] **Step 1: Failing tests** — fixture model: Email/Name/ID quarantined with reasons; campus/role NOT quarantined; scrubText on the planted comment removes email, phone, `Mr Chen`; plain comment unchanged.
 - [ ] **Step 2: Run — FAIL.** 
@@ -191,7 +192,7 @@ export interface RatingStats { kind:'rating'; answered:number; mean:number; medi
   distribution:{value:number;label?:string;count:number;pct:number}[];
   favourablePct:number; neutralPct:number; unfavourablePct:number }
 export interface NumericStats { kind:'numeric'; answered:number; mean:number; median:number; min:number; max:number }
-export interface TextStats { kind:'text'; answered:number; comments:string[]; // SCRUBBED, uses scrubText
+export interface TextStats { kind:'text'; answered:number; comments:string[]; // SCRUBBED via makeScrubber(model)
   themes:{term:string;count:number}[]; sentiment:{pos:number;neg:number;neu:number} }
 export type QuestionStats = { questionId:string; title:string } & (ChoiceStats|RatingStats|NumericStats|TextStats);
 export interface StatsDigest {
