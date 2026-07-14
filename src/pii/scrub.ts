@@ -17,6 +17,12 @@
 //     pass needs 5+ digits so years/postcodes survive).
 //   - A long phone number typed with no spaces is redacted as [id] rather
 //     than [phone] - mislabelled placeholder, still redacted.
+//   - First names that are also common English words (e.g. Grace, Will)
+//     are only scrubbed as full phrases ("Grace Park") or with honorifics
+//     — the bare given name may survive in comments.
+//   - A single-word given-name column under a header with no name-related
+//     word (e.g. "What should we call you?") is not auto-detected — use
+//     manual column exclusion.
 //
 // Redacts personally-identifiable substrings from free-text survey answers
 // before they reach charts, exports or any AI prompt. Column-level PII (see
