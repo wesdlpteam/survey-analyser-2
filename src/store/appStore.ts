@@ -215,6 +215,16 @@ export function createAppStore(): UseBoundStore<StoreApi<AppState>> {
       // unreachable in practice - kept anyway so ask() is safe to call.
       if (apiKey === '' || digest === null || question === '') return;
 
+      // Same stale-reply identity guard runAiAuditIfKeyed uses: if the digest
+      // object this question was grounded in is no longer the one in state
+      // (reset, a new survey load, or a quarantine override re-ran the
+      // pipeline), the answer describes data the user is no longer looking at
+      // - drop it rather than appending an orphan/misleading bubble or a
+      // stale error. chatBusy is still cleared on the bail because, unlike
+      // reset/load (which clear it themselves), a quarantine override doesn't
+      // touch chat state - without this the UI would stay on "Thinking"
+      // forever with Send disabled.
+      const requestDigest = digest;
       const nextChat = [...chat, { role: 'user' as const, content: question }];
       set({ chat: nextChat, chatBusy: true, chatError: null });
 
@@ -223,15 +233,23 @@ export function createAppStore(): UseBoundStore<StoreApi<AppState>> {
         const reply = await chatText({
           key: apiKey,
           model: aiModel,
-          system: chatSystemPrompt(digestForAi(digest, context)),
+          system: chatSystemPrompt(digestForAi(requestDigest, context)),
           messages: toSend,
         });
+        if (get().digest !== requestDigest) {
+          set({ chatBusy: false }); // superseded - drop this stale reply
+          return;
+        }
         set((s) => ({
           chat: [...s.chat, { role: 'assistant', content: reply }],
           chatBusy: false,
           chatError: null,
         }));
       } catch (e) {
+        if (get().digest !== requestDigest) {
+          set({ chatBusy: false }); // superseded - drop this stale error too
+          return;
+        }
         const kind = e instanceof AiError ? e.kind : 'network';
         set({ chatBusy: false, chatError: AI_ERROR_MESSAGES[kind] });
       }
@@ -243,6 +261,9 @@ export function createAppStore(): UseBoundStore<StoreApi<AppState>> {
         const bytes = await file.arrayBuffer();
         const rawModel = parseWorkbook(bytes, file.name);
         const { model, digest, audit } = runPipeline(rawModel, [], []);
+        // Chat state is cleared on every load (success AND failure) because
+        // any existing conversation was grounded in the previous survey's
+        // digest - keeping it under a new report would mislead the reader.
         set({
           rawModel,
           model,
@@ -253,11 +274,24 @@ export function createAppStore(): UseBoundStore<StoreApi<AppState>> {
           phase: 'report',
           error: null,
           reportTitle: `${model.title} Audit Report`,
+          chat: [],
+          chatBusy: false,
+          chatError: null,
         });
         runAiAuditIfKeyed(set, get);
       } catch (e) {
         const message = e instanceof ParseError ? e.message : GENERIC_LOAD_ERROR;
-        set({ phase: 'landing', error: message, rawModel: null, model: null, digest: null, audit: null });
+        set({
+          phase: 'landing',
+          error: message,
+          rawModel: null,
+          model: null,
+          digest: null,
+          audit: null,
+          chat: [],
+          chatBusy: false,
+          chatError: null,
+        });
         runAiAuditIfKeyed(set, get);
       }
     },
@@ -265,6 +299,8 @@ export function createAppStore(): UseBoundStore<StoreApi<AppState>> {
     loadSample() {
       const rawModel = sampleModel();
       const { model, digest, audit } = runPipeline(rawModel, [], []);
+      // Chat cleared for the same reason as loadFile: the old conversation
+      // was grounded in the old digest.
       set({
         rawModel,
         model,
@@ -275,6 +311,9 @@ export function createAppStore(): UseBoundStore<StoreApi<AppState>> {
         phase: 'report',
         error: null,
         reportTitle: `${model.title} Audit Report`,
+        chat: [],
+        chatBusy: false,
+        chatError: null,
       });
       runAiAuditIfKeyed(set, get);
     },

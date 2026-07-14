@@ -137,4 +137,86 @@ describe('appStore ask-the-data chat', () => {
     expect(state.chatBusy).toBe(false);
     expect(state.chatError).toBeNull();
   });
+
+  // --- fix round: reset/new-load races and chat lifetime -------------------
+
+  it('a reply resolving after reset() is dropped: no orphan message, chatBusy false, no error', async () => {
+    let resolveFetch!: (v: Response) => void;
+    const pending = new Promise<Response>((resolve) => {
+      resolveFetch = resolve;
+    });
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(pending));
+    const store = readyStore();
+
+    const askPromise = store.getState().ask('Slow question?');
+    await Promise.resolve();
+    expect(store.getState().chatBusy).toBe(true);
+
+    store.getState().reset(); // user starts over while the request is in flight
+
+    resolveFetch(jsonResponse(200, chatCompletion('Too late.')));
+    await askPromise;
+
+    const state = store.getState();
+    expect(state.chat).toEqual([]); // no orphan assistant bubble
+    expect(state.chatBusy).toBe(false);
+    expect(state.chatError).toBeNull();
+  });
+
+  it('an error arriving after reset() is dropped too: no stale chatError', async () => {
+    let rejectFetch!: (e: Error) => void;
+    const pending = new Promise<Response>((_resolve, reject) => {
+      rejectFetch = reject;
+    });
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(pending));
+    const store = readyStore();
+
+    const askPromise = store.getState().ask('Doomed question?');
+    await Promise.resolve();
+    store.getState().reset();
+
+    rejectFetch(new TypeError('Failed to fetch'));
+    await askPromise;
+
+    const state = store.getState();
+    expect(state.chat).toEqual([]);
+    expect(state.chatBusy).toBe(false);
+    expect(state.chatError).toBeNull();
+  });
+
+  it('a reply resolving after a NEW survey load is dropped, not appended to the new chat', async () => {
+    let resolveFetch!: (v: Response) => void;
+    const pending = new Promise<Response>((resolve) => {
+      resolveFetch = resolve;
+    });
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(pending));
+    const store = readyStore();
+
+    const askPromise = store.getState().ask('Old survey question?');
+    await Promise.resolve();
+
+    store.getState().loadSample(); // fresh digest replaces the one the ask was grounded in
+
+    resolveFetch(jsonResponse(200, chatCompletion('Grounded in the OLD digest.')));
+    await askPromise;
+
+    const state = store.getState();
+    expect(state.chat).toEqual([]); // cleared by the load, and the stale reply stayed out
+    expect(state.chatBusy).toBe(false);
+    expect(state.chatError).toBeNull();
+  });
+
+  it('loading a new survey clears any completed chat exchange', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(200, chatCompletion('Answer.'))));
+    const store = readyStore();
+    await store.getState().ask('First survey question?');
+    expect(store.getState().chat).toHaveLength(2);
+
+    store.getState().loadSample();
+
+    const state = store.getState();
+    expect(state.chat).toEqual([]);
+    expect(state.chatBusy).toBe(false);
+    expect(state.chatError).toBeNull();
+  });
 });
