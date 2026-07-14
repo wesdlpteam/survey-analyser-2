@@ -100,7 +100,7 @@
   .landing__headline,
   .landing__body,
   .landing__dropzone {
-    animation: wsa-rise 0.5s var(--ease-out-quart) both;
+    animation: wsa-rise 0.5s var(--ease-out-quart) backwards;
   }
   .landing__headline { animation-delay: 0.06s; }
   .landing__body { animation-delay: 0.12s; }
@@ -163,7 +163,7 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .landing__error {
-    animation: wsa-rise 0.28s var(--ease-out-quart) both;
+    animation: wsa-rise 0.28s var(--ease-out-quart) backwards;
   }
 }
 

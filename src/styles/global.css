@@ -46,7 +46,13 @@ button {
    attached inside a (prefers-reduced-motion: no-preference) block by the
    component that uses it, so the reduced-motion reset never has to fight it -
    the element's resting style (opacity 1, no transform) is the default and
-   the animation simply never starts. */
+   the animation simply never starts.
+
+   Users attach these with fill-mode `backwards` (never `both`/`forwards`):
+   backwards keeps the from-state during a stagger delay, and once the
+   animation ends the fill releases - important because a forwards-filled
+   `transform: none` would permanently beat any :hover transform (animated
+   values outrank normal cascade declarations). */
 @keyframes wsa-rise {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: none; }

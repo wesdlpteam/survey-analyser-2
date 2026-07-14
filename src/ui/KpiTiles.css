@@ -25,7 +25,7 @@
    Motion-safe: without the media query the tiles are simply already here. */
 @media (prefers-reduced-motion: no-preference) {
   .kpi-tile {
-    animation: wsa-rise 0.45s var(--ease-out-quart) both;
+    animation: wsa-rise 0.45s var(--ease-out-quart) backwards;
   }
   .kpi-tile:nth-child(2) { animation-delay: 0.06s; }
   .kpi-tile:nth-child(3) { animation-delay: 0.12s; }

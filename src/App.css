@@ -151,7 +151,7 @@
    cue, motion-safe (resting state is fully visible). */
 @media (prefers-reduced-motion: no-preference) {
   .report__panel:not([hidden]) {
-    animation: wsa-rise 0.32s var(--ease-out-quart) both;
+    animation: wsa-rise 0.32s var(--ease-out-quart) backwards;
   }
 }
 

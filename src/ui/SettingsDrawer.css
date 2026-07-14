@@ -18,10 +18,10 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .settings-drawer__overlay {
-    animation: wsa-fade 0.2s var(--ease-out-quart) both;
+    animation: wsa-fade 0.2s var(--ease-out-quart) backwards;
   }
   .settings-drawer {
-    animation: wsa-slide-in 0.28s var(--ease-out-expo) both;
+    animation: wsa-slide-in 0.28s var(--ease-out-expo) backwards;
   }
 }
 

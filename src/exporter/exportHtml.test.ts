@@ -165,6 +165,21 @@ describe('buildExportHtml', () => {
     expect(html).toContain('<table'); // stats table fallback took over
   });
 
+  it('refuses to emit an <img> for a data:image/svg+xml src (SVG can carry script) and falls back to a table', () => {
+    const digest = makeDigest([choiceQ('q1', 'Which campus?')]);
+    const audit = makeAudit([makeSection()]);
+    const html = buildExportHtml({
+      audit,
+      digest,
+      title: 'Staff Survey',
+      chartImages: { q1: 'data:image/svg+xml,<svg onload=alert(1)/>' },
+      generatedOn: GENERATED_ON,
+    });
+    expect(html).not.toContain('data:image/svg');
+    expect(html).not.toContain('<img');
+    expect(html).toContain('<table');
+  });
+
   it('never lets a planted secret-like string leak through, even smuggled onto a cloned digest/audit', () => {
     const digest = makeDigest([choiceQ('q1', 'Which campus?')]);
     const audit = makeAudit([makeSection()]);

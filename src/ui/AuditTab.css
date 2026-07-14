@@ -22,7 +22,7 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .audit-tab__cover {
-    animation: wsa-rise 0.45s var(--ease-out-quart) both;
+    animation: wsa-rise 0.45s var(--ease-out-quart) backwards;
   }
 }
 
@@ -154,7 +154,7 @@
    never feels slow. Motion-safe by construction. */
 @media (prefers-reduced-motion: no-preference) {
   .audit-section {
-    animation: wsa-rise 0.5s var(--ease-out-quart) both;
+    animation: wsa-rise 0.5s var(--ease-out-quart) backwards;
   }
   .audit-section:nth-child(2) { animation-delay: 0.05s; }
   .audit-section:nth-child(3) { animation-delay: 0.1s; }

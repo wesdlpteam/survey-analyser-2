@@ -114,9 +114,10 @@ function renderTable(table: { head: string[]; rows: (string | number)[][] }): st
 function renderChartOrTable(imgSrc: string | null, alt: string, q: QuestionStats): string {
   // Defense-in-depth: only ever emit an <img> for a genuine embedded raster
   // data URI (what ChartCanvas.toDataURL always produces). Anything else - a
-  // non-image data: URI, an http/javascript: URL, a malformed value - falls
-  // back to the stats table rather than trusting the string as an image src.
-  if (imgSrc && imgSrc.startsWith('data:image/')) {
+  // non-image data: URI, an http/javascript: URL, an SVG data URI (which can
+  // carry script), a malformed value - falls back to the stats table rather
+  // than trusting the string as an image src.
+  if (imgSrc && /^data:image\/(png|jpeg|webp)[;,]/.test(imgSrc)) {
     return `<img class="wsa-chart" src="${escapeHtml(imgSrc)}" alt="${escapeHtml(alt)}" />`;
   }
   const table = statsTable(q);
