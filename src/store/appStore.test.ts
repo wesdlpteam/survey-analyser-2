@@ -111,6 +111,14 @@ describe('appStore', () => {
       expect(state.audit).not.toBeNull();
       expect(state.error).toBeNull();
     });
+
+    it('defaults reportTitle from the survey title, with no em-dash (UI copy rule)', () => {
+      const store = createAppStore();
+      store.getState().loadSample();
+      const title = store.getState().reportTitle;
+      expect(title).toBe('Staff Survey 2026 Audit Report');
+      expect(title).not.toContain('—');
+    });
   });
 
   describe('reset', () => {

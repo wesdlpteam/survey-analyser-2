@@ -150,7 +150,7 @@ export function createAppStore(): UseBoundStore<StoreApi<AppState>> {
           restored: [],
           phase: 'report',
           error: null,
-          reportTitle: `${model.title} — Audit Report`,
+          reportTitle: `${model.title} Audit Report`,
         });
       } catch (e) {
         const message = e instanceof ParseError ? e.message : GENERIC_LOAD_ERROR;
@@ -170,7 +170,7 @@ export function createAppStore(): UseBoundStore<StoreApi<AppState>> {
         restored: [],
         phase: 'report',
         error: null,
-        reportTitle: `${model.title} — Audit Report`,
+        reportTitle: `${model.title} Audit Report`,
       });
     },
 

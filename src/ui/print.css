@@ -3,16 +3,24 @@
    user prints - the whole point is to force the OTHER tabs out of the
    printed page and show only the audit document.
 
-   Technique for "expand every finding" (task brief's choice point): CSS
-   cannot flip a <details> element's `open` attribute, but it CAN override
-   the browser's own UA stylesheet rule that hides a closed <details>'s
-   body - that rule is just `details:not([open]) > *:not(summary) {
-   display: none }`, an ordinary CSS rule like any other, so a more specific
-   print-only rule beats it. Chosen over an onbeforeprint JS listener
-   because it needs no JS, has no "forgot to re-collapse after printing"
-   failure mode, and FindingRow already always mounts its evidence into the
-   DOM (see FindingRow.tsx) rather than gating it on the open state, so
-   there is always real content here for this rule to reveal. */
+   Technique for "expand every finding" (task brief's choice point),
+   reworked after review: BOTH mechanisms, JS primary + CSS fallback.
+
+   - PRIMARY: AuditTab.tsx's beforeprint/afterprint listeners set the real
+     `open` attribute on every closed finding before printing and restore
+     only the print-opened ones afterwards (the user's own open/closed
+     choices survive). Works in every engine regardless of how the UA
+     hides a closed <details>' body.
+   - FALLBACK (rules below): CSS for any render-to-print path where
+     beforeprint doesn't fire. Two rules are needed because modern
+     Chromium/Firefox hide a closed <details>' body via content-visibility
+     on the ::details-content shadow wrapper - a plain display override on
+     the light-DOM children does NOT reveal it there (and getComputedStyle
+     on those children reports block anyway, a known false positive). The
+     legacy children rule stays for older engines that hide via a UA
+     display:none on the children themselves. FindingRow always mounts its
+     evidence into the DOM (never gated on open state), so whichever
+     mechanism fires has real content to reveal. */
 @media print {
   .app-header,
   .report__toolbar,
@@ -27,6 +35,15 @@
     display: block !important;
   }
 
+  /* Modern engines: closed-<details> body hidden via content-visibility on
+     the ::details-content shadow wrapper. */
+  .finding-row::details-content {
+    content-visibility: visible !important;
+    display: block !important;
+  }
+
+  /* Legacy engines: closed-<details> body hidden via display on the
+     light-DOM children. */
   .finding-row:not([open]) > *:not(summary) {
     display: block !important;
   }

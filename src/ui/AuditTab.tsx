@@ -4,7 +4,7 @@
 // privacy footnote. Renders identically whether `audit.source` is 'rules'
 // (today, Task 5's fallback) or 'ai' (Task 9) - every field this component
 // reads is on the shared AuditReport type, never fallback-specific.
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useApp } from '../store/appStore';
 import FindingRow from './FindingRow';
 import RagBadge from './RagBadge';
@@ -23,6 +23,36 @@ export default function AuditTab() {
   // straight into the store field would make Escape and Enter behave
   // identically (nothing left to "cancel" back to).
   const [draftTitle, setDraftTitle] = useState(reportTitle);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // Print expansion, JS side (primary mechanism): before printing, open
+  // every closed finding <details> so its evidence prints; afterwards
+  // re-close ONLY the ones this handler opened, so the user's own
+  // open/closed choices survive the print cycle. print.css keeps two
+  // CSS-only rules as a fallback for engines that render print without
+  // firing beforeprint - see the comment there for why CSS alone isn't
+  // enough in modern Chromium/Firefox (::details-content content-visibility).
+  useEffect(() => {
+    const openedByPrint: HTMLDetailsElement[] = [];
+    function handleBeforePrint() {
+      const root = rootRef.current;
+      if (!root) return;
+      for (const d of root.querySelectorAll<HTMLDetailsElement>('details.finding-row:not([open])')) {
+        d.open = true;
+        openedByPrint.push(d);
+      }
+    }
+    function handleAfterPrint() {
+      for (const d of openedByPrint) d.open = false;
+      openedByPrint.length = 0;
+    }
+    window.addEventListener('beforeprint', handleBeforePrint);
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => {
+      window.removeEventListener('beforeprint', handleBeforePrint);
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+  }, []);
 
   if (!model || !digest || !audit) return null;
 
@@ -34,12 +64,14 @@ export default function AuditTab() {
   }
 
   function commitTitle() {
-    setReportTitle(draftTitle);
+    // A blank/whitespace draft is a mis-click, not a request for an
+    // untitled report - keep the previous title instead of erasing it.
+    if (draftTitle.trim() !== '') setReportTitle(draftTitle);
     setEditingTitle(false);
   }
 
   return (
-    <div className="audit-tab">
+    <div className="audit-tab" ref={rootRef}>
       <header className="audit-tab__cover">
         <div className="audit-tab__title-row">
           {editingTitle ? (
@@ -153,7 +185,7 @@ export default function AuditTab() {
             ))}
           </ol>
         ) : (
-          <p className="audit-tab__body-text">No specific recommendations were flagged — results look solid across the board.</p>
+          <p className="audit-tab__body-text">No specific recommendations were flagged. Results look solid across the board.</p>
         )}
       </section>
 
@@ -177,12 +209,12 @@ export default function AuditTab() {
         <p className="audit-tab__body-text">
           {audit.source === 'ai'
             ? `This report's ratings and wording were generated with AI assistance (model: ${audit.model ?? 'unknown'}), checked against the rules above.`
-            : 'No AI was used for this report — every number, rating and sentence comes from fixed rules applied directly to your data.'}
+            : 'No AI was used for this report. Every number, rating and sentence comes from fixed rules applied directly to your data.'}
         </p>
 
         <p className="audit-tab__body-text">
           Comments are automatically checked for names, emails, phone numbers and other personal details before
-          they appear here. This is a best-effort process, not a guarantee — for example, a colleague mentioned by
+          they appear here. This is a best-effort process, not a guarantee. For example, a colleague mentioned by
           first name only, or an email, phone number or ID written in an unusual format, might not always be
           caught. If you spot anything that should have been removed, use the column exclude option above to leave
           that question out of the report, or fix the file and upload it again.

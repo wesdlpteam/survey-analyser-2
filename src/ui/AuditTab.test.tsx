@@ -24,7 +24,7 @@ function loadFixtureIntoStore() {
   const model = applyQuarantine(sampleModel());
   const digest = computeStats(model);
   const audit = buildFallbackAudit(digest);
-  useApp.setState({ model, digest, audit, reportTitle: 'Staff Survey 2026 — Audit Report', phase: 'report' });
+  useApp.setState({ model, digest, audit, reportTitle: 'Staff Survey 2026 Audit Report', phase: 'report' });
   return { model, digest, audit };
 }
 
@@ -101,11 +101,53 @@ describe('AuditTab', () => {
     const { default: userEvent } = await import('@testing-library/user-event');
     const user = userEvent.setup();
     render(<AuditTab />);
-    expect(screen.getByText('Staff Survey 2026 — Audit Report')).toBeTruthy();
+    expect(screen.getByText('Staff Survey 2026 Audit Report')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: /edit report title/i }));
     const input = screen.getByRole('textbox', { name: /report title/i });
     await user.clear(input);
     await user.type(input, 'Renamed report{Enter}');
     expect(useApp.getState().reportTitle).toBe('Renamed report');
+  });
+
+  it('keeps the previous title when the input is cleared to blank and committed', async () => {
+    loadFixtureIntoStore();
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    render(<AuditTab />);
+    await user.click(screen.getByRole('button', { name: /edit report title/i }));
+    const input = screen.getByRole('textbox', { name: /report title/i });
+    await user.clear(input);
+    await user.type(input, '   {Enter}');
+    expect(useApp.getState().reportTitle).toBe('Staff Survey 2026 Audit Report');
+    expect(screen.getByText('Staff Survey 2026 Audit Report')).toBeTruthy();
+  });
+
+  it('has no em-dashes in its own UI copy (title, cover, methodology, empty states)', () => {
+    const { digest } = loadFixtureIntoStore();
+    // Force the "no recommendations" empty-state sentence to render too.
+    const audit = buildFallbackAudit(digest);
+    audit.recommendations = [];
+    // Strip section/finding prose (fallback.ts copy, out of this task's
+    // scope) so only AuditTab's own strings are checked.
+    audit.sections = [];
+    useApp.setState({ audit });
+    const { container } = render(<AuditTab />);
+    expect(container.textContent).not.toContain('—');
+  });
+
+  it('opens every finding on beforeprint and restores only print-opened ones on afterprint', () => {
+    loadFixtureIntoStore();
+    const { container } = render(<AuditTab />);
+    const details = Array.from(container.querySelectorAll<HTMLDetailsElement>('details.finding-row'));
+    expect(details.length).toBeGreaterThan(0);
+    // User opens the first one by hand; it must survive the print cycle.
+    details[0].open = true;
+
+    window.dispatchEvent(new Event('beforeprint'));
+    for (const d of details) expect(d.open).toBe(true);
+
+    window.dispatchEvent(new Event('afterprint'));
+    expect(details[0].open).toBe(true); // user's own state kept
+    for (const d of details.slice(1)) expect(d.open).toBe(false); // print-opened ones re-collapsed
   });
 });
