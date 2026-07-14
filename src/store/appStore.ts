@@ -24,7 +24,10 @@ const GENERIC_LOAD_ERROR = "We couldn't read that file. Is it a Microsoft Forms 
 const AI_ERROR_MESSAGES: Record<AiErrorKind, string> = {
   auth: "That API key wasn't accepted. Check it in Settings and try again.",
   rate: 'OpenAI is busy right now. Wait a moment and try again.',
-  network: "Couldn't reach OpenAI. Check your internet connection and try again.",
+  // 'network' also covers non-401/429 HTTP failures (403/500/quota) where
+  // the connection itself worked - so the copy can't promise the problem is
+  // the user's internet, only suggest it as one thing to check.
+  network: "We couldn't get an answer from OpenAI. Check your internet connection and try again.",
   'bad-response': "OpenAI sent back something we couldn't use. Try again.",
 };
 

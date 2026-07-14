@@ -48,13 +48,17 @@
   color: var(--wes-error);
 }
 
+/* Purple, never the inherited error red: purple is the app's only
+   interactive colour. The error colour stays on the message text only.
+   Purple on white matches the reset button's AA-contrast pairing. */
 .report__ai-retry {
-  border: 1px solid currentColor;
-  background: none;
-  color: inherit;
+  border: 1px solid var(--wes-purple);
+  background: var(--wes-white);
+  color: var(--wes-purple);
   border-radius: 6px;
   padding: 0.2rem 0.6rem;
   font-size: 0.8rem;
+  font-weight: 600;
   cursor: pointer;
 }
 

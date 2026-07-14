@@ -5,6 +5,13 @@
 // or a crash report.
 const CHAT_URL = 'https://api.openai.com/v1/chat/completions';
 
+// Hard ceiling on one request (covers both waiting for headers and reading
+// the body - the same AbortSignal cancels both). Without this, a stalled
+// response would leave aiStatus 'running' forever and the Retry button only
+// renders in the 'error' state, so the user would have no recovery short of
+// a reload. 60s is generous for audit generation over a large digest.
+export const AI_REQUEST_TIMEOUT_MS = 60_000;
+
 export type AiErrorKind = 'auth' | 'rate' | 'network' | 'bad-response';
 
 export class AiError extends Error {
@@ -28,37 +35,53 @@ interface ChatBody {
 // AiError kind; the message text is always generic/static, never built from
 // the key or the raw response body (which could echo the key back).
 async function postChat(key: string, body: ChatBody): Promise<string> {
-  let res: Response;
+  // AbortController + timer instead of AbortSignal.timeout() so the timer
+  // can be cleared explicitly in `finally` - no dangling timers after a
+  // fast success or failure (tested via vi.getTimerCount()).
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
   try {
-    res = await fetch(CHAT_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify(body),
-    });
-  } catch {
-    // fetch itself rejected - offline, DNS failure, CORS block, etc.
-    throw new AiError('network', 'Could not reach OpenAI. Check your internet connection and try again.');
-  }
+    let res: Response;
+    try {
+      res = await fetch(CHAT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch {
+      // fetch itself rejected - offline, DNS failure, CORS block, or our
+      // own timeout abort. All present the same way to the user: no answer.
+      throw new AiError('network', "Couldn't get an answer from OpenAI.");
+    }
 
-  if (res.status === 401) throw new AiError('auth', 'OpenAI rejected the API key.');
-  if (res.status === 429) throw new AiError('rate', 'OpenAI is rate-limiting requests right now.');
-  if (!res.ok) throw new AiError('network', `OpenAI request failed with status ${res.status}.`);
+    if (res.status === 401) throw new AiError('auth', 'OpenAI rejected the API key.');
+    if (res.status === 429) throw new AiError('rate', 'OpenAI is rate-limiting requests right now.');
+    if (!res.ok) throw new AiError('network', `OpenAI request failed with status ${res.status}.`);
 
-  let json: unknown;
-  try {
-    json = await res.json();
-  } catch {
-    throw new AiError('bad-response', "OpenAI's response body could not be read as JSON.");
-  }
+    let json: unknown;
+    try {
+      json = await res.json();
+    } catch {
+      // A timeout abort mid-body-read lands here too - report it as the
+      // stall it is, not as a malformed response.
+      if (controller.signal.aborted) {
+        throw new AiError('network', "Couldn't get an answer from OpenAI.");
+      }
+      throw new AiError('bad-response', "OpenAI's response body could not be read as JSON.");
+    }
 
-  const content = (json as { choices?: { message?: { content?: unknown } }[] })?.choices?.[0]?.message?.content;
-  if (typeof content !== 'string') {
-    throw new AiError('bad-response', "OpenAI's response did not have the expected shape.");
+    const content = (json as { choices?: { message?: { content?: unknown } }[] })?.choices?.[0]?.message?.content;
+    if (typeof content !== 'string') {
+      throw new AiError('bad-response', "OpenAI's response did not have the expected shape.");
+    }
+    return content;
+  } finally {
+    clearTimeout(timer);
   }
-  return content;
 }
 
 // response_format json_object - OpenAI guarantees the content string is

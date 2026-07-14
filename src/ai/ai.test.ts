@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { StatsDigest } from '../stats/engine';
 import type { SurveyModel } from '../types';
 import { computeStats } from '../stats/engine';
-import { AiError, chatJSON, chatText } from './client';
+import { AI_REQUEST_TIMEOUT_MS, AiError, chatJSON, chatText } from './client';
 import { auditSystemPrompt, auditUserPrompt, chatSystemPrompt, digestForAi } from './prompts';
 import { validateAudit } from './validate';
 import { runAiAudit } from './runAudit';
@@ -79,6 +79,57 @@ describe('client.ts', () => {
       vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
       const call = chatJSON({ key: 'sk-test', model: 'gpt-4o-mini', system: 'sys', user: 'usr' });
       await expect(call).rejects.toMatchObject({ kind: 'network' });
+    });
+
+    it('a response that never arrives times out into AiError kind "network" (bounded AbortController timeout)', async () => {
+      // Fails fast (not by hanging) when the timeout constant doesn't exist.
+      expect(AI_REQUEST_TIMEOUT_MS).toBeGreaterThan(0);
+      vi.useFakeTimers();
+      try {
+        // Mock behaves like real fetch under abort: never resolves on its
+        // own, rejects with an AbortError ONLY when the passed signal fires.
+        // Optional chaining so a missing signal leaves the promise pending
+        // forever (a genuine failure) instead of crashing the executor into
+        // a vacuous 'network' rejection.
+        const fetchMock = vi.fn(
+          (_url: string, init?: { signal?: AbortSignal }) =>
+            new Promise((_resolve, reject) => {
+              init?.signal?.addEventListener('abort', () =>
+                reject(new DOMException('The operation was aborted.', 'AbortError')),
+              );
+            }),
+        );
+        vi.stubGlobal('fetch', fetchMock);
+
+        const call = chatJSON({ key: 'sk-test', model: 'gpt-4o-mini', system: 'sys', user: 'usr' });
+        const assertion = expect(call).rejects.toMatchObject({ kind: 'network' });
+
+        // The request must actually carry an abort signal...
+        await vi.advanceTimersByTimeAsync(0);
+        const init = fetchMock.mock.calls[0][1];
+        expect(init?.signal).toBeInstanceOf(AbortSignal);
+        expect(init?.signal?.aborted).toBe(false); // ...that hasn't fired early
+
+        await vi.advanceTimersByTimeAsync(AI_REQUEST_TIMEOUT_MS);
+        expect(init?.signal?.aborted).toBe(true);
+        await assertion;
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('a fast success does not leave a dangling timeout timer', async () => {
+      vi.useFakeTimers();
+      try {
+        vi.stubGlobal(
+          'fetch',
+          vi.fn().mockResolvedValue(jsonResponse(200, chatCompletion('{"ok":true}'))),
+        );
+        await chatJSON({ key: 'sk-test', model: 'gpt-4o-mini', system: 'sys', user: 'usr' });
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('non-JSON content throws AiError kind "bad-response"', async () => {
