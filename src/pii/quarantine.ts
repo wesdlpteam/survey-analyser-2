@@ -26,6 +26,26 @@ const ID_NUMBER_REGEX = /\bid number/;
 // header that merely embeds the letters d-o-b inside a longer word.
 const DOB_WORD_REGEX = /(?<![\p{L}\p{N}])dob(?![\p{L}\p{N}])/u;
 
+// parent/carer/guardian as whole words (plural allowed) - "How transparent
+// is..." and "the parenting seminar" must never trip the rule (fix3 1a).
+const NAME_CONTEXT_WORD_REGEX = /(?<![\p{L}\p{N}])(?:parent|carer|guardian)s?(?![\p{L}\p{N}])/u;
+
+// Question-style header guard (fix3 1b): a header that reads as a survey
+// QUESTION ("How effective is email communication?") must not trip the
+// substring-based rules - only exact/suffix rules and the who-is-your
+// person rules apply there, and the value scans still backstop columns
+// whose ANSWERS are real PII. 'who' is deliberately absent from this list
+// so "Who is your..." headers keep quarantining.
+const INTERROGATIVE_STARTERS = [
+  'how', 'what', 'why', 'when', 'which', 'do', 'does', 'did', 'is', 'are',
+  'was', 'were', 'should', 'would', 'could', 'can', 'will', 'rate', 'to what extent',
+];
+
+function isQuestionStyleHeader(rawTitle: string, h: string): boolean {
+  if (rawTitle.trim().endsWith('?')) return true;
+  return INTERROGATIVE_STARTERS.some((w) => h === w || h.startsWith(w + ' '));
+}
+
 // --- value-shape scan patterns (fix2 B) ----------------------------------
 // Person-name shape: 1-4 words, each starting with an uppercase letter,
 // with an optional trailing ", Year N". Total length capped at 40 so a long
@@ -35,16 +55,29 @@ const NAME_SHAPE_REGEX =
 const NAME_SHAPE_MAX_LEN = 40;
 const NAME_SHAPE_MATCH_RATIO = 0.6;
 const NAME_SHAPE_DISTINCT_RATIO = 0.5;
+// fix3 item 2: single-word choice sets ("English", "Maths") must not read
+// as names - most shape-matching values must be 2+ words - and short
+// columns are too noisy to judge.
+const NAME_SHAPE_MULTIWORD_RATIO = 0.6;
+const NAME_SHAPE_MIN_NONEMPTY = 5;
 
 // ID shape: up to 3 letters, an optional separator, then 4+ digits. Catches
 // S12345, s1234567, WES-04821, and bare 6-7 digit numeric ID columns.
 const ID_SHAPE_REGEX = /^[A-Za-z]{0,3}[-\s]?\d{4,}$/;
 const ID_SHAPE_MATCH_RATIO = 0.6;
 const ID_SHAPE_DISTINCT_RATIO = 0.8;
+const ID_SHAPE_MIN_NONEMPTY = 3;
 
-// Both shape scans need a floor of real answers so a 1-2 row synthetic
-// column can never trip them on a coincidence.
-const VALUE_SHAPE_MIN_NONEMPTY = 3;
+// fix3 item 2 year-guard: a "what year did you start?" column is 4-digit
+// and highly distinct, but if EVERY id-shaped value is a plausible year the
+// column is calendar data, not identifiers.
+const YEAR_VALUE_REGEX = /^\d{4}$/;
+const YEAR_MIN = 1900;
+const YEAR_MAX = 2100;
+
+function isYearValue(value: string): boolean {
+  return YEAR_VALUE_REGEX.test(value) && Number(value) >= YEAR_MIN && Number(value) <= YEAR_MAX;
+}
 
 function normaliseHeader(title: string): string {
   // Trailing punctuation/whitespace is stripped so "Student ID:" still ends
@@ -69,16 +102,16 @@ function isNameHeader(h: string): boolean {
   return h === 'name' || h.endsWith(' name') || NAME_EXACT_TERMS.has(h);
 }
 
-// High-confidence "someone else's name" headers (fix2 A4). Reason 'name'.
+// High-confidence "someone else's name" headers (fix2 A4), substring-based
+// so suppressed on question-style headers.
 function isNameContextHeader(h: string): boolean {
-  return (
-    h.includes('emergency contact') ||
-    h.includes('parent') ||
-    h.includes('carer') ||
-    h.includes('guardian') ||
-    h.startsWith('who is your') ||
-    h.startsWith('who should we')
-  );
+  return h.includes('emergency contact') || NAME_CONTEXT_WORD_REGEX.test(h);
+}
+
+// "Who is your..." / "Who should we..." person questions - these ARE
+// questions by construction, so they sit outside the question guard.
+function isWhoPersonHeader(h: string): boolean {
+  return h.startsWith('who is your') || h.startsWith('who should we');
 }
 
 function isPhoneHeader(h: string): boolean {
@@ -90,14 +123,14 @@ function isDobHeader(h: string): boolean {
   return h.includes('date of birth') || h.includes('birthday') || DOB_WORD_REGEX.test(h);
 }
 
-// NOTE on the identifier rule's "id" check: it must match the WHOLE header
-// (trimmed) or its last word (a " id" suffix) - never a bare substring -
-// otherwise ordinary questions like "Have you considered...?" would
-// misfire, since "considered" contains the letters "id".
-function isIdentifierHeader(h: string): boolean {
+// Substring-based identifier phrases (suppressed on question-style
+// headers). The exact/suffix "id" check lives in classifyHeader because it
+// must fire regardless of question style - and it must match the WHOLE
+// header or its last word, never a bare substring, otherwise ordinary
+// questions like "Have you considered...?" would misfire ("considered"
+// contains the letters "id").
+function isIdentifierContainsHeader(h: string): boolean {
   return (
-    h === 'id' ||
-    h.endsWith(' id') ||
     ID_NUMBER_REGEX.test(h) ||
     h.includes('student number') ||
     h.includes('staff number') ||
@@ -114,17 +147,25 @@ function isIdentifierHeader(h: string): boolean {
   );
 }
 
-// Header-based rules, checked in the brief's exact order; the first match
-// wins. dob sits after phone and before identifier per fix2 A3.
+// Header-based rules, first match wins. Exact/suffix rules and the
+// who-person rules fire on any header; the substring rules only fire on
+// headers that don't read as survey questions (fix3 1b). dob sits after
+// phone and before identifier per fix2 A3.
 function classifyHeader(title: string, type: QType): string | null {
   const h = normaliseHeader(title);
 
-  if (isEmailHeader(h)) return 'email';
   if (isNameHeader(h)) return 'name';
-  if (isNameContextHeader(h)) return 'name';
-  if (isPhoneHeader(h)) return 'phone';
-  if (isDobHeader(h)) return 'identifier';
-  if (isIdentifierHeader(h)) return 'identifier';
+  if (isWhoPersonHeader(h)) return 'name';
+  if (h === 'id' || h.endsWith(' id')) return 'identifier';
+
+  if (!isQuestionStyleHeader(title, h)) {
+    if (isEmailHeader(h)) return 'email';
+    if (isNameContextHeader(h)) return 'name';
+    if (isPhoneHeader(h)) return 'phone';
+    if (isDobHeader(h)) return 'identifier';
+    if (isIdentifierContainsHeader(h)) return 'identifier';
+  }
+
   if (type === 'meta') return 'metadata';
 
   return null;
@@ -165,20 +206,35 @@ function classifyByValues(rows: SurveyModel['rows'], colIndex: number): string |
   if (personalCount / nonEmpty.length > VALUE_SCAN_THRESHOLD) return 'looks-personal';
 
   // Shape scans need enough rows AND enough distinct answers - a small
-  // repeated choice set (campuses, roles, Likert labels, years) fails the
+  // repeated choice set (campuses, roles, Likert labels) fails the
   // distinct-ratio guard even when the values look name- or id-shaped.
-  if (nonEmpty.length >= VALUE_SHAPE_MIN_NONEMPTY) {
-    const distinctRatio = new Set(nonEmpty).size / nonEmpty.length;
+  const distinctRatio = new Set(nonEmpty).size / nonEmpty.length;
 
-    // B1 - name shape.
-    const nameCount = nonEmpty.filter(isNameShape).length;
-    if (nameCount / nonEmpty.length >= NAME_SHAPE_MATCH_RATIO && distinctRatio >= NAME_SHAPE_DISTINCT_RATIO) {
+  // B1 - name shape (fix3: also needs mostly-multi-word matches, so
+  // single-word choice sets like subjects never read as names).
+  if (nonEmpty.length >= NAME_SHAPE_MIN_NONEMPTY) {
+    const nameMatches = nonEmpty.filter(isNameShape);
+    const multiWordCount = nameMatches.filter((value) => /\s/.test(value)).length;
+    if (
+      nameMatches.length / nonEmpty.length >= NAME_SHAPE_MATCH_RATIO &&
+      distinctRatio >= NAME_SHAPE_DISTINCT_RATIO &&
+      nameMatches.length > 0 &&
+      multiWordCount / nameMatches.length >= NAME_SHAPE_MULTIWORD_RATIO
+    ) {
       return 'looks-personal';
     }
+  }
 
-    // B2 - id shape.
-    const idCount = nonEmpty.filter((value) => ID_SHAPE_REGEX.test(value)).length;
-    if (idCount / nonEmpty.length >= ID_SHAPE_MATCH_RATIO && distinctRatio >= ID_SHAPE_DISTINCT_RATIO) {
+  // B2 - id shape (fix3: skipped when every id-shaped value is a plausible
+  // calendar year).
+  if (nonEmpty.length >= ID_SHAPE_MIN_NONEMPTY) {
+    const idMatches = nonEmpty.filter((value) => ID_SHAPE_REGEX.test(value));
+    const allYears = idMatches.length > 0 && idMatches.every(isYearValue);
+    if (
+      !allYears &&
+      idMatches.length / nonEmpty.length >= ID_SHAPE_MATCH_RATIO &&
+      distinctRatio >= ID_SHAPE_DISTINCT_RATIO
+    ) {
       return 'looks-personal';
     }
   }

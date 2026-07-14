@@ -542,11 +542,15 @@ describe('fix2 D — makeScrubber upgrades', () => {
     expect(scrub('For example, the timetable is clearer.')).toBe('For example, the timetable is clearer.');
   });
 
-  // D3 — uppercase-initial guard for 3+ char tokens
+  // D3 — uppercase-initial guard for 3+ char tokens.
+  // BEHAVIOUR CHANGE (fix3 item 4): previously demonstrated with "Will";
+  // "will" is now on the common-word stoplist so a bare Will token is never
+  // collected (only the full "Will Turner" phrase would be). The
+  // uppercase-initial rule itself is unchanged, shown here with "Rose".
   it('D3: a 3+ char token is only replaced when it starts uppercase', () => {
-    const scrub = makeScrubber(nameColumnModel(['Will']));
-    expect(scrub('It will help a lot.')).toBe('It will help a lot.');
-    expect(scrub('Will helped me settle in.')).toBe('[name] helped me settle in.');
+    const scrub = makeScrubber(nameColumnModel(['Rose']));
+    expect(scrub('The rose garden is lovely.')).toBe('The rose garden is lovely.');
+    expect(scrub('Rose helped me settle in.')).toBe('[name] helped me settle in.');
   });
 
   // D3 — 2-char case-sensitive tokens
@@ -590,5 +594,153 @@ describe('fix2 D — makeScrubber upgrades', () => {
       respondentCount: 1,
     };
     expect(makeScrubber(model)('Okonkwo chaired the meeting.')).toBe('[name] chaired the meeting.');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fix round 3 — stop over-matching destroying survey data
+// ---------------------------------------------------------------------------
+
+describe('fix3 item 1 — A4 word-boundaries + question-style header guard', () => {
+  it('1a: does not quarantine headers where "parent" is only a substring', () => {
+    expect(applyQuarantine(synthHeader('How transparent is leadership communication?')).questions[0].quarantined).toBe(
+      false,
+    );
+    expect(applyQuarantine(synthHeader('Is the new policy transparent enough?')).questions[0].quarantined).toBe(false);
+    expect(applyQuarantine(synthHeader('How useful was the parenting seminar?')).questions[0].quarantined).toBe(false);
+    // Non-question variant proves the word-boundary alone (no question guard).
+    expect(applyQuarantine(synthHeader('Parenting workshop feedback')).questions[0].quarantined).toBe(false);
+  });
+
+  it('1b: question-style headers do not trip the contains-rules', () => {
+    expect(applyQuarantine(synthHeader('How effective is email communication?')).questions[0].quarantined).toBe(false);
+    expect(
+      applyQuarantine(synthHeader('What do you think of the mobile phone policy?')).questions[0].quarantined,
+    ).toBe(false);
+  });
+
+  it('1b: exact/suffix and who-rules still fire on question-style headers', () => {
+    expect(applyQuarantine(synthHeader('Email address')).questions[0].quarantineReason).toBe('email');
+    expect(applyQuarantine(synthHeader('Who is your homeroom teacher?')).questions[0].quarantineReason).toBe('name');
+  });
+
+  it('1b: the value scan still backstops a question-headed column of real emails', () => {
+    const result = applyQuarantine(
+      synthRows([['a@example.com'], ['b@example.com'], ['c@example.com']], 'text', 'How can we contact you?'),
+    );
+    expect(result.questions[0].quarantineReason).toBe('looks-personal');
+  });
+});
+
+describe('fix3 item 2 — B1/B2 tightening', () => {
+  it('B1: a single-word choice column (favourite subjects) is NOT quarantined', () => {
+    const subjects = [
+      ['English'],
+      ['Maths'],
+      ['Science'],
+      ['History'],
+      ['Geography'],
+      ['Drama'],
+      ['Music'],
+      ['Visual Arts'],
+    ];
+    expect(applyQuarantine(synthRows(subjects)).questions[0].quarantined).toBe(false);
+  });
+
+  it('B1: a 5-row club column is NOT quarantined (row floor / distinct guard)', () => {
+    const clubs = [['Chess Club'], ['Debate Team'], ['Chess Club'], ['Chess Club'], ['Debate Team']];
+    expect(applyQuarantine(synthRows(clubs)).questions[0].quarantined).toBe(false);
+  });
+
+  it('B1: a 6-row full-name column IS still quarantined', () => {
+    const names = [
+      ['Amelia Watson'],
+      ['Ben Okafor'],
+      ['Carla Reyes'],
+      ['Divya Nair'],
+      ['Ethan Walsh'],
+      ['Fiona Zhu'],
+    ];
+    expect(applyQuarantine(synthRows(names)).questions[0].quarantineReason).toBe('looks-personal');
+  });
+
+  it('B2: a distinct year-of-entry column is NOT quarantined (year guard)', () => {
+    const years = [['1998'], ['2003'], ['2010'], ['2015'], ['2021'], ['1987']];
+    expect(applyQuarantine(synthRows(years, 'text', 'What year did you start?')).questions[0].quarantined).toBe(false);
+  });
+});
+
+describe('fix3 item 3 — ambiguous lowercase titles', () => {
+  it('leaves lowercase ambiguous titles followed by lowercase words unchanged', () => {
+    expect(scrubText('I will miss working with her.')).toBe('I will miss working with her.');
+    expect(scrubText('I miss having planning time.')).toBe('I miss having planning time.');
+    expect(scrubText('We coach netball on Fridays.')).toBe('We coach netball on Fridays.');
+    expect(scrubText('The principal reason I stay is the team.')).toBe('The principal reason I stay is the team.');
+  });
+
+  it('still scrubs an ambiguous lowercase title before a capitalised name', () => {
+    expect(scrubText('miss Chen marks fairly')).toBe('[name] marks fairly');
+  });
+
+  it('keeps the lenient rule for unambiguous titles and uppercase forms', () => {
+    expect(scrubText('mr chen helped me')).toBe('[name] helped me');
+    expect(scrubText('Principal Nguyen visited us.')).toBe('[name] visited us.');
+  });
+});
+
+describe('fix3 item 4 — common-word token stoplist', () => {
+  function nameModel(names: (string | null)[]): SurveyModel {
+    return {
+      title: 'X',
+      questions: [{ id: 'q0', title: 'Name', type: 'text', quarantined: true, quarantineReason: 'name' }],
+      rows: names.map((n) => [n]),
+      respondentCount: names.length,
+    };
+  }
+
+  it('"My Nguyen": common word My never scrubbed, phrase and rare token still are', () => {
+    const scrub = makeScrubber(nameModel(['My Nguyen']));
+    expect(scrub('My favourite part is the library.')).toBe('My favourite part is the library.');
+    expect(scrub('my nguyen helped me')).toBe('[name] helped me');
+    expect(scrub('Nguyen ran the session.')).toBe('[name] ran the session.');
+  });
+
+  it('"Anh Do": Do survives as a word, Anh is still scrubbed', () => {
+    const scrub = makeScrubber(nameModel(['Anh Do']));
+    expect(scrub('Do you think we need more PD?')).toBe('Do you think we need more PD?');
+    expect(scrub('Anh was helpful')).toBe('[name] was helpful');
+  });
+
+  it('"Will Turner": Will survives as a word, the full phrase is still scrubbed', () => {
+    const scrub = makeScrubber(nameModel(['Will Turner']));
+    expect(scrub('Will this policy change soon?')).toBe('Will this policy change soon?');
+    expect(scrub('will turner asked about it')).toBe('[name] asked about it');
+  });
+});
+
+describe('fix3 item 5 — filler values are never collected as tokens', () => {
+  it('filler Name-column values do not corrupt ordinary comments', () => {
+    const model: SurveyModel = {
+      title: 'X',
+      questions: [{ id: 'q0', title: 'Name', type: 'text', quarantined: true, quarantineReason: 'name' }],
+      rows: [['Prefer not to say'], ['None']],
+      respondentCount: 2,
+    };
+    const scrub = makeScrubber(model);
+    expect(scrub('I would prefer not to say more.')).toBe('I would prefer not to say more.');
+    expect(scrub('None of the changes helped.')).toBe('None of the changes helped.');
+  });
+});
+
+describe('fix3 item 6 — obfuscated-email pass requires a TLD-like ending', () => {
+  it('leaves ordinary "at ... dot ..." prose unchanged', () => {
+    expect(scrubText('we looked at options dot points')).toBe('we looked at options dot points');
+    expect(scrubText('we ate lunch at school dot the canteen was busy')).toBe(
+      'we ate lunch at school dot the canteen was busy',
+    );
+  });
+
+  it('redacts the whole obfuscated address including leading "word dot" segments', () => {
+    expect(scrubText('Email john dot smith at gmail dot com for details.')).toBe('Email [email] for details.');
   });
 });

@@ -8,6 +8,13 @@
 //     non-quarantined choice columns.
 //   - A suburb + postcode left over after an [address] redaction.
 //   - Fully spelled-out email obfuscations beyond the at/dot shape below.
+//   - Restorable-tier quarantine false positives: a >=5-row column of
+//     distinct 2-word titles ("The Hunger Games", ...) can still read as a
+//     name column; the UI's quarantine override exists to restore these.
+//   - Identifier tokens of 4 or fewer digits inside comments (the [id]
+//     pass needs 5+ digits so years/postcodes survive).
+//   - A long phone number typed with no spaces is redacted as [id] rather
+//     than [phone] - mislabelled placeholder, still redacted.
 //
 // Redacts personally-identifiable substrings from free-text survey answers
 // before they reach charts, exports or any AI prompt. Column-level PII (see
@@ -27,9 +34,12 @@ import type { SurveyModel } from '../types';
 // can never end on sentence punctuation glued straight onto the address.
 const TEXT_EMAIL_REGEX = /[^\s@]+@[^\s@]+\.[^\s@]*[^\s@.,;]/g;
 
-// Obfuscated email (fix2 C4), best-effort: "john dot smith at gmail dot com".
-// Requires the at/dot skeleton so it can't fire on ordinary prose.
-const OBFUSCATED_EMAIL_REGEX = /(?<!\S)[\w.-]+\s+at\s+[\w-]+(?:\s+dot\s+\w{2,})+/gi;
+// Obfuscated email (fix2 C4, tightened fix3 item 6): the final "dot X"
+// segment must be TLD-like, so ordinary prose ("we looked at options dot
+// points") never matches, and the local part absorbs leading "word dot"
+// segments so "john dot smith at gmail dot com" is redacted whole.
+const OBFUSCATED_EMAIL_REGEX =
+  /(?<!\S)[\w-]+(?:\s+dot\s+[\w-]+)*\s+at\s+[\w-]+(?:\s+dot\s+[\w-]+)*\s+dot\s+(?:com|net|org|edu|gov|au|nz|uk|io|co)(?![\p{L}\p{N}])/giu;
 
 // ID pass (fix2 C2): up to 3 leading letters, optional dash, then 5+ digits
 // (5, not 4, so a bare year like 2026 and a 4-digit postcode are left
@@ -77,19 +87,25 @@ const HONORIFIC_STOPWORDS = new Set([
   'she', 'they', 'we', 'you', 'me', 'us', 'so', 'if', 'for', 'with', 'said', 'says',
 ]);
 
+// Titles that are also everyday English words (fix3 item 3): their
+// LOWERCASE form only reads as a title when the next word is capitalised
+// ("miss Chen" yes, "miss working" no). Unambiguous titles (mr, dr, ...)
+// keep the lenient lowercase rule.
+const AMBIGUOUS_TITLES = new Set(['miss', 'coach', 'principal', 'sir', 'madam', 'pastor', 'rev']);
+
 // Accept each title in its original, lower, and upper case forms. Longest
 // first so "Professor" is tried before "Prof" at the same position.
 const TITLE_ALT = [...new Set(HONORIFIC_TITLES.flatMap((t) => [t, t.toLowerCase(), t.toUpperCase()]))]
   .sort((a, b) => b.length - a.length)
   .join('|');
 
-// title  +  captured first name word (group 1)  +  optional lowercase
-// particle chain  +  0-2 further capitalised words. The particle chain uses
-// a (?=\s) guard so a following hyphenated word ("de-escalated") is never
-// partly consumed. The first word class includes "." so an initial ("J.")
-// is captured as its own word.
+// captured title (group 1)  +  captured first name word (group 2)  +
+// optional lowercase particle chain  +  0-2 further capitalised words. The
+// particle chain uses a (?=\s) guard so a following hyphenated word
+// ("de-escalated") is never partly consumed. The first word class includes
+// "." so an initial ("J.") is captured as its own word.
 const HONORIFIC_NAME_REGEX = new RegExp(
-  `(?<![\\p{L}\\p{N}])(?:${TITLE_ALT})\\.?\\s+` +
+  `(?<![\\p{L}\\p{N}])(${TITLE_ALT})\\.?\\s+` +
     `([\\p{Lu}\\p{Ll}][\\p{L}'’.-]*)` +
     `(?:\\s+(?:[Vv]an|[Vv]on|[Dd]er|[Dd]e|[Dd]a|[Dd]i|[Ll]a|[Ll]e)(?=\\s))*` +
     `(?:\\s+\\p{Lu}[\\p{L}'’.-]*){0,2}` +
@@ -97,8 +113,14 @@ const HONORIFIC_NAME_REGEX = new RegExp(
   'gu',
 );
 
-function honorificReplacer(match: string, firstWord: string): string {
-  return HONORIFIC_STOPWORDS.has(firstWord.toLowerCase()) ? match : '[name]';
+function honorificReplacer(match: string, title: string, firstWord: string): string {
+  if (HONORIFIC_STOPWORDS.has(firstWord.toLowerCase())) return match;
+  // Ambiguous lowercase title + lowercase following word = ordinary prose
+  // ("I will miss working with her"), not a person (fix3 item 3).
+  if (/^\p{Ll}/u.test(title) && AMBIGUOUS_TITLES.has(title.toLowerCase()) && !STARTS_UPPER.test(firstWord)) {
+    return match;
+  }
+  return '[name]';
 }
 
 export function scrubText(text: string): string {
@@ -114,6 +136,29 @@ export function scrubText(text: string): string {
 // 1-char tokens (bare initials) are too collision-prone to scrub. 2-char and
 // 3+ char tokens are handled with different, stricter rules below.
 const TOKEN_MIN_LENGTH = 2;
+
+// Common English words are never collected as single tokens (fix3 item 4) -
+// a respondent named "Will"/"My"/"Do" would otherwise corrupt every comment
+// containing that word. Multi-word PHRASES still catch the full name
+// ("Will Turner"), and rare tokens ("Nguyen", "Anh") are unaffected.
+const COMMON_WORDS = new Set([
+  'do', 'so', 'my', 'an', 'no', 'if', 'is', 'it', 'at', 'on', 'or', 'to',
+  'be', 'by', 'up', 'go', 'he', 'we', 'me', 'us', 'the', 'and', 'was', 'are',
+  'but', 'not', 'all', 'one', 'two', 'our', 'out', 'had', 'has', 'her',
+  'him', 'his', 'how', 'new', 'now', 'old', 'see', 'way', 'who', 'did',
+  'get', 'let', 'say', 'she', 'too', 'use', 'yes', 'that', 'this', 'they',
+  'from', 'have', 'more', 'when', 'some', 'time', 'year', 'well', 'than',
+  'then', 'them', 'what', 'were', 'been', 'does', 'most', 'much', 'many',
+  'also', 'just', 'like', 'over', 'only', 'very', 'with', 'will', 'may',
+  'can', 'son', 'sun', 'mark', 'grace',
+]);
+
+// Whole-cell filler answers (fix3 item 5): never real names, and their
+// words ("none", "prefer", "say") would corrupt ordinary comments.
+const FILLER_VALUES = new Set([
+  'n/a', 'na', 'none', 'nil', 'prefer not to say', 'not applicable',
+  'not sure', 'unsure', 'unknown', 'yes', 'no', 'other', 'nothing', '-',
+]);
 
 // Splits a cell value into word tokens: runs of letters/digits, keeping
 // apostrophes and hyphens inside a token ("O'Brien-Smith" stays whole) while
@@ -174,6 +219,7 @@ function collectTokens(model: SurveyModel): CollectedTokens {
       if (value === null) continue;
       let str = String(value).trim();
       if (str === '') continue;
+      if (FILLER_VALUES.has(str.toLowerCase())) continue; // fix3 item 5
 
       // Email columns: keep the local part only, never the domain (fix2 D2)
       // - a domain word like "wesley" or "example" must never redact prose.
@@ -191,6 +237,7 @@ function collectTokens(model: SurveyModel): CollectedTokens {
       for (const raw of str.split(TOKEN_SPLIT_REGEX)) {
         const token = stripEdges(raw);
         if (token.length < TOKEN_MIN_LENGTH) continue;
+        if (COMMON_WORDS.has(token.toLowerCase())) continue; // fix3 item 4
         if (token.length === 2) {
           // Only uppercase-initial 2-char tokens ("Ng", "Vy") - this keeps
           // numeric id fragments ("14") and lowercase junk out.
