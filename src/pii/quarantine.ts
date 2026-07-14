@@ -79,6 +79,14 @@ function isYearValue(value: string): boolean {
   return YEAR_VALUE_REGEX.test(value) && Number(value) >= YEAR_MIN && Number(value) <= YEAR_MAX;
 }
 
+// Date shape (fix3b item 2): a highly-distinct column of dd/mm/yyyy-style
+// values is birth-date data (restorable looks-personal tier - an event-date
+// column may false-positive and can be restored in the UI).
+const DATE_SHAPE_REGEX = /^\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}$/;
+const DATE_SHAPE_MATCH_RATIO = 0.6;
+const DATE_SHAPE_DISTINCT_RATIO = 0.5;
+const DATE_SHAPE_MIN_NONEMPTY = 5;
+
 function normaliseHeader(title: string): string {
   // Trailing punctuation/whitespace is stripped so "Student ID:" still ends
   // with " id". Unicode-aware ([^\p{L}\p{N}]) so only non-letter/non-digit
@@ -118,9 +126,17 @@ function isPhoneHeader(h: string): boolean {
   return h.includes('phone') || h.includes('mobile');
 }
 
-// Date-of-birth headers (fix2 A3). Reason 'identifier'.
-function isDobHeader(h: string): boolean {
-  return h.includes('date of birth') || h.includes('birthday') || DOB_WORD_REGEX.test(h);
+// Date-of-birth headers (fix2 A3, split fix3b). Reason 'identifier'.
+// "date of birth" and the word "dob" have no innocent question hosts, so
+// they fire even on question-style headers ("When is your date of birth?").
+function isStrongDobHeader(h: string): boolean {
+  return h.includes('date of birth') || DOB_WORD_REGEX.test(h);
+}
+
+// "birthday" DOES have innocent question hosts ("Did you enjoy the birthday
+// breakfast?"), so it stays under the question guard.
+function isBirthdayHeader(h: string): boolean {
+  return h.includes('birthday');
 }
 
 // Substring-based identifier phrases (suppressed on question-style
@@ -157,12 +173,13 @@ function classifyHeader(title: string, type: QType): string | null {
   if (isNameHeader(h)) return 'name';
   if (isWhoPersonHeader(h)) return 'name';
   if (h === 'id' || h.endsWith(' id')) return 'identifier';
+  if (isStrongDobHeader(h)) return 'identifier';
 
   if (!isQuestionStyleHeader(title, h)) {
     if (isEmailHeader(h)) return 'email';
     if (isNameContextHeader(h)) return 'name';
     if (isPhoneHeader(h)) return 'phone';
-    if (isDobHeader(h)) return 'identifier';
+    if (isBirthdayHeader(h)) return 'identifier';
     if (isIdentifierContainsHeader(h)) return 'identifier';
   }
 
@@ -235,6 +252,15 @@ function classifyByValues(rows: SurveyModel['rows'], colIndex: number): string |
       idMatches.length / nonEmpty.length >= ID_SHAPE_MATCH_RATIO &&
       distinctRatio >= ID_SHAPE_DISTINCT_RATIO
     ) {
+      return 'looks-personal';
+    }
+  }
+
+  // Date shape (fix3b) - catches a birth-date column whose header escaped
+  // the header rules ("When is your birthday?").
+  if (nonEmpty.length >= DATE_SHAPE_MIN_NONEMPTY) {
+    const dateCount = nonEmpty.filter((value) => DATE_SHAPE_REGEX.test(value)).length;
+    if (dateCount / nonEmpty.length >= DATE_SHAPE_MATCH_RATIO && distinctRatio >= DATE_SHAPE_DISTINCT_RATIO) {
       return 'looks-personal';
     }
   }

@@ -10,7 +10,9 @@
 //   - Fully spelled-out email obfuscations beyond the at/dot shape below.
 //   - Restorable-tier quarantine false positives: a >=5-row column of
 //     distinct 2-word titles ("The Hunger Games", ...) can still read as a
-//     name column; the UI's quarantine override exists to restore these.
+//     name column, and a distinct EVENT-date column (excursion dates) can
+//     read as birth dates via the date-shape scan; the UI's quarantine
+//     override exists to restore these.
 //   - Identifier tokens of 4 or fewer digits inside comments (the [id]
 //     pass needs 5+ digits so years/postcodes survive).
 //   - A long phone number typed with no spaces is redacted as [id] rather

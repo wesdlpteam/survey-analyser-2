@@ -732,6 +732,42 @@ describe('fix3 item 5 — filler values are never collected as tokens', () => {
   });
 });
 
+describe('fix3b — date of birth backstop', () => {
+  it('1: "date of birth" and word "dob" are exempt from the question-style guard', () => {
+    expect(applyQuarantine(synthHeader('When is your date of birth?')).questions[0].quarantineReason).toBe(
+      'identifier',
+    );
+    expect(applyQuarantine(synthHeader('What is your DOB?')).questions[0].quarantineReason).toBe('identifier');
+  });
+
+  it('1: "birthday" stays under the question guard (opinion questions survive)', () => {
+    expect(applyQuarantine(synthHeader('Did you enjoy the birthday breakfast?')).questions[0].quarantined).toBe(false);
+    // Non-question "Birthday" header still quarantines (round 2 behaviour).
+    expect(applyQuarantine(synthHeader('Birthday')).questions[0].quarantineReason).toBe('identifier');
+  });
+
+  it('2: a distinct dd/mm/yyyy column is quarantined by the date-shape scan', () => {
+    const dates = [['12/03/2011'], ['05/11/2010'], ['23/07/2011'], ['01/09/2010'], ['17/02/2011'], ['30/06/2011']];
+    expect(applyQuarantine(synthRows(dates, 'text', 'When is your birthday?')).questions[0].quarantineReason).toBe(
+      'looks-personal',
+    );
+  });
+
+  it('2 guard: a repeated event-date column is NOT quarantined (low distinct ratio)', () => {
+    const termDates = [
+      ['01/02/2026'],
+      ['14/04/2026'],
+      ['01/02/2026'],
+      ['14/04/2026'],
+      ['01/02/2026'],
+      ['14/04/2026'],
+      ['01/02/2026'],
+      ['14/04/2026'],
+    ];
+    expect(applyQuarantine(synthRows(termDates, 'text', 'Which term?')).questions[0].quarantined).toBe(false);
+  });
+});
+
 describe('fix3 item 6 — obfuscated-email pass requires a TLD-like ending', () => {
   it('leaves ordinary "at ... dot ..." prose unchanged', () => {
     expect(scrubText('we looked at options dot points')).toBe('we looked at options dot points');
