@@ -35,5 +35,8 @@ const TEXT_PHONE_REGEX = /\+?\d[\d\s-]{6,}\d/g;
 const HONORIFIC_NAME_REGEX = /\b(Mr|Mrs|Ms|Miss|Dr|Prof)\.?\s+[A-Z][a-z]+/g;
 
 export function scrubText(text: string): string {
-  return text.replace(TEXT_EMAIL_REGEX, '[email]').replace(TEXT_PHONE_REGEX, '[phone]').replace(HONORIFIC_NAME_REGEX, '[name]');
+  return text
+    .replace(TEXT_EMAIL_REGEX, '[email]')
+    .replace(TEXT_PHONE_REGEX, '[phone]')
+    .replace(HONORIFIC_NAME_REGEX, '[name]');
 }
