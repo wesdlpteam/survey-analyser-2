@@ -92,7 +92,11 @@ export default function CommentBrowser({ stats }: CommentBrowserProps) {
         </div>
       )}
 
-      <ul className="comment-browser__list">
+      {/* tabIndex so keyboard users can scroll this list once its content
+          overflows max-height (CSS overflow-y: auto) - axe's
+          scrollable-region-focusable rule (WCAG 2.1.1) flags a scrollable
+          container that only a mouse/trackpad can reach. */}
+      <ul className="comment-browser__list" tabIndex={0}>
         {filtered.map((comment, i) => (
           // eslint-disable-next-line react/no-array-index-key -- comments have no stable id of their own
           <li key={i} className="comment-browser__item">
