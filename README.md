@@ -3,8 +3,7 @@
 Turn a Microsoft Forms survey export into a plain-English, audit-style report,
 right in your browser. Built by the DLP Team, Wesley College.
 
-**Live app:** https://wesdlpteam.github.io/survey-analyser-2/
-*(link goes live once the app is deployed — see "Hosting" below)*
+Use it here: https://wesdlpteam.github.io/survey-analyser-2/
 
 ## What it does
 
