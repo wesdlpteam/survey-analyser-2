@@ -4,6 +4,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as XLSX from 'xlsx';
 import { buildFixtureWorkbook } from '../fixtures/build';
+import type { SurveyModel } from '../types';
 import { createAppStore } from './appStore';
 
 function fixtureFile(name = 'Staff_Survey_2026.xlsx'): File {
@@ -226,6 +227,35 @@ describe('appStore', () => {
       const emailAfter = state.model!.questions.find((q) => q.id === email.id)!;
       expect(emailAfter.quarantined).toBe(true);
       expect(state.digest!.questions.some((q) => q.questionId === email.id)).toBe(false);
+    });
+
+    it('manual exclude beats a restore on the same column - the column stays quarantined', () => {
+      const store = createAppStore();
+      // Synthetic column: header doesn't trip a hard rule, but its values are
+      // all email-shaped so quarantine.ts's value-scan flags it 'looks-personal'.
+      const rawModel: SurveyModel = {
+        title: 'synthetic',
+        questions: [{ id: 'q0', title: 'Contact', type: 'text', quarantined: false }],
+        rows: [['a@example.com'], ['b@example.com'], ['c@example.com'], ['d@example.com']],
+        respondentCount: 4,
+      };
+      store.setState({ rawModel, manualExcluded: [], restored: [] });
+      // Seed model/digest from rawModel (mirrors what loadFile does), since
+      // toggleRestore reads quarantineReason off the current `model`.
+      store.getState().setManualExcluded([]);
+
+      // User restores the auto-quarantined column back into analysis...
+      store.getState().toggleRestore('q0');
+      expect(store.getState().model!.questions.find((q) => q.id === 'q0')!.quarantined).toBe(false);
+
+      // ...then explicitly excludes that same column. The explicit exclude
+      // must win: the column stays quarantined and out of the digest.
+      store.getState().setManualExcluded(['q0']);
+      const after = store.getState();
+      const q0 = after.model!.questions.find((q) => q.id === 'q0')!;
+      expect(q0.quarantined).toBe(true);
+      expect(q0.quarantineReason).toBe('manual');
+      expect(after.digest!.questions.some((q) => q.questionId === 'q0')).toBe(false);
     });
   });
 });

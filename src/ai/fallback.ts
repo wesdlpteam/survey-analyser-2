@@ -27,14 +27,13 @@ function ratingJustification(q: QuestionStats & RatingStats): string {
   return `${q.favourablePct}% answered favourably`;
 }
 
-// distribution is sorted ascending by value, so its first/last entries are
-// the observed scale range — RatingStats itself doesn't carry an explicit
-// min/max, only the values that were actually answered.
+// Uses scaleMin/scaleMax (the declared/derived scale the favourability split
+// was classified against), not the observed distribution's first/last
+// entries - those only cover values someone actually picked, so if nobody
+// answered at an extreme the range would understate the real scale.
 function ratingFinding(q: QuestionStats & RatingStats): Finding {
-  const min = q.distribution[0]?.value ?? 0;
-  const max = q.distribution[q.distribution.length - 1]?.value ?? 0;
   return {
-    text: `${q.favourablePct}% answered favourably (mean ${q.mean} of ${min}-${max})`,
+    text: `${q.favourablePct}% answered favourably (mean ${q.mean} of ${q.scaleMin}-${q.scaleMax})`,
     evidenceQuestionIds: [q.questionId],
   };
 }
@@ -192,7 +191,7 @@ function buildExecutiveSummary(d: StatsDigest, ratingQuestions: (QuestionStats &
 function buildRecommendations(questions: QuestionStats[], sections: AuditSection[]): string[] {
   return sections
     .filter((s, i) => questionRag(questions[i]) !== null && s.rag !== 'green')
-    .map((s) => `Look closer at "${s.title}" — ${s.ragJustification}`);
+    .map((s) => `Look closer at "${s.title}": ${s.ragJustification}`);
 }
 
 export function buildFallbackAudit(d: StatsDigest): AuditReport {

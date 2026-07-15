@@ -129,6 +129,23 @@ describe('buildFallbackAudit (synthetic: no analysable questions)', () => {
   });
 });
 
+describe('buildFallbackAudit (synthetic: rating scale wording)', () => {
+  it('uses the declared scale bounds, not the observed answers, when an extreme went unanswered', () => {
+    // scale is 1-5 but nobody actually picked 1 or 5 - the finding must
+    // still say "of 1-5", not understate it as "of 2-4".
+    const digest = computeStats({
+      title: 'scale bounds',
+      questions: [{ id: 'q0', title: 'Rate us', type: 'rating', scale: { min: 1, max: 5 }, quarantined: false }],
+      rows: [[2], [3], [3], [4]],
+      respondentCount: 4,
+    });
+    const report = buildFallbackAudit(digest);
+    const section = report.sections.find((s) => s.title === 'Rate us');
+    expect(section?.findings[0].text).toContain('of 1-5');
+    expect(section?.findings[0].text).not.toContain('of 2-4');
+  });
+});
+
 describe('buildFallbackAudit (synthetic: text-only survey, no ratings)', () => {
   it('describes the overall picture in plain words, never internal colour codes', () => {
     const textOnly = computeStats({

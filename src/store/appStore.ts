@@ -116,17 +116,19 @@ export interface AppState {
 
 // Applies quarantine to the raw model, then layers manual overrides on top:
 // restored looks-personal columns are re-included; manually excluded columns
-// are force-quarantined with reason 'manual'.
+// are force-quarantined with reason 'manual'. A manual exclude always wins
+// over a restore on the same column - the user's explicit "keep this out"
+// must never be silently overridden by an earlier "put this back".
 function buildOverriddenModel(rawModel: SurveyModel, manualExcluded: string[], restored: string[]): SurveyModel {
   const quarantined = applyQuarantine(rawModel);
   const restoredSet = new Set(restored);
   const excludedSet = new Set(manualExcluded);
   const questions = quarantined.questions.map((q) => {
+    if (excludedSet.has(q.id)) {
+      return { ...q, quarantined: true, quarantineReason: 'manual' };
+    }
     if (q.quarantined && q.quarantineReason === 'looks-personal' && restoredSet.has(q.id)) {
       return { ...q, quarantined: false, quarantineReason: undefined };
-    }
-    if (!q.quarantined && excludedSet.has(q.id)) {
-      return { ...q, quarantined: true, quarantineReason: 'manual' };
     }
     return q;
   });
