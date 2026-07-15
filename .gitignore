@@ -36,3 +36,9 @@ dist-ssr
 # Controller session scratch dirs (must never be committed)
 .superpowers/
 scratch/
+
+# Playwright (Task 14) - local run artifacts only, never source
+/test-results/
+/playwright-report/
+/playwright/.cache/
+/blob-report/
