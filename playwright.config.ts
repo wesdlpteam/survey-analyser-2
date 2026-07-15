@@ -20,9 +20,12 @@ export default defineConfig({
   use: {
     baseURL: BASE_URL,
     trace: 'retain-on-failure',
-    // KpiTiles animates its numbers on mount over 700ms unless the OS/browser
-    // says reduced motion - forcing that here makes KPI assertions immediate
-    // and deterministic instead of racing a requestAnimationFrame loop.
+    // NOTE: this context-level option proved to be a silent no-op in
+    // Playwright 1.61.1 + Chromium 149 (matchMedia in the page still
+    // reported no-preference and entrance animations ran at scan time).
+    // Kept as belt-and-braces for future versions, but the guard that
+    // actually works is page.emulateMedia({ reducedMotion: 'reduce' })
+    // in the specs - see e2e/a11y.spec.ts's beforeEach for the evidence.
     reducedMotion: 'reduce',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
